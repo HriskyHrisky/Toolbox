@@ -33,7 +33,7 @@ main{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
 @media (max-width:800px){.pane.left{border-right:0}}
 .pane-head{padding:6px 12px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
 .pane-head .meta{margin-left:auto;color:var(--dim);font-size:11px;text-transform:none;letter-spacing:0}
-textarea{flex:1;width:100%;border:0;resize:none;outline:none;background:#0b0e13;color:var(--fg);padding:10px 12px;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:auto;tab-size:2}
+textarea{flex:1;min-height:0;width:100%;border:0;resize:none;outline:none;background:#0b0e13;color:var(--fg);padding:10px 12px;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:auto;tab-size:2}
 textarea::placeholder{color:#4b5470}
 #modeBadge{margin-left:8px;padding:1px 7px;border:1px solid var(--line);border-radius:5px;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
 #placement{flex:0 0 auto;height:80px;border-top:1px solid var(--line);background:#0a0d12}
@@ -127,7 +127,7 @@ body[data-mode="files"] #filesFooter{display:flex}
 #treePane{display:none;min-width:0;min-height:0}
 body[data-mode="files"] #treePane{display:flex}
 body[data-mode="files"] main{grid-template-columns:minmax(0,1fr) 340px}
-@media (max-width:800px){body[data-mode="files"] main{grid-template-columns:1fr;grid-template-rows:auto}}
+@media (max-width:800px){body[data-mode="files"] main{grid-template-columns:1fr;grid-template-rows:minmax(220px,1fr) minmax(280px,1fr)}}
 body[data-mode="files"] main > .pane:not(.left):not(#treePane){display:none}
 #placeWrap{display:contents}
 body[data-mode="files"] #placeWrap{display:none}
@@ -158,19 +158,17 @@ body[data-mode="files"] .filterbar,body[data-mode="files"] .prefixbar{display:fl
 <option value="empty">Prune · Empty</option>
 <option value="throw">Prune · Throw</option>
 </select>
-<input type="number" id="pruneN" value="0" min="0" step="50" title="Char threshold (≥). Bodies ≥ n are preserved. 0 = off." aria-label="prune threshold" style="display:none;width:80px">
+<input type="number" id="pruneN" value="1" min="0" step="50" title="Char threshold (≥). Bodies ≥ n are preserved. 0 = off." aria-label="prune threshold" style="display:none;width:80px">
 <div id="modebar"><div id="globalModeSwitch" style="display:inline-flex;gap:4px;padding:4px;background:#0b0e13;border:2px solid #5b9dff;border-radius:9px;font:inherit">
 <button type="button" data-top="organize" style="font:inherit;font-weight:700;font-size:13px;padding:7px 20px;border-radius:6px;cursor:pointer;border:1px solid #5b9dff;color:#04101f;background:#5b9dff">Organize</button>
 <button type="button" data-top="prune" style="font:inherit;font-weight:700;font-size:13px;padding:7px 20px;border-radius:6px;cursor:pointer;border:1px solid #334052;color:#e7ebf3;background:#252c38">Prune</button>
 <button type="button" data-top="files" style="font:inherit;font-weight:700;font-size:13px;padding:7px 20px;border-radius:6px;cursor:pointer;border:1px solid #334052;color:#e7ebf3;background:#252c38">Files</button>
 </div>
+<button id="demo" title="Load demo corpus (mode-aware: Organize / Prune / Files)">Demo</button>
 </div>
+<div id="globalToolsBar" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 0"><button id="btnUndo" title="Undo the last change">Undo</button><button id="btnRedo" title="Redo the last undo">Redo</button><button id="clear" title="Clear input and output">Clr</button><button id="copyListBtn" type="button" class="primary" title="Copy a keyword-shorthand summary of every file">Copy list</button><select id="copyListMode" title="Copy list format" style="font:inherit;font-size:12px;padding:3px 6px;border-radius:5px;background:#0b0e13;color:#e7ebf3;border:1px solid #334052"><option value="full">full</option><option value="deps: I">deps: I</option><option value="deps: E">deps: E</option><option value="deps: I+E">deps: I+E</option><option value="Isolated">Isolated</option><option value="pathway only">pathway only</option></select><button id="btnDeleteEmpty" title="Delete all files with 0 characters">Del empty</button></div>
 <div class="spacer"></div>
-<label id="dryRunLabel" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)" title="Organize only: re-emit input files without hoisting/dedup/rewrites. Ignored in Prune mode."><input type="checkbox" id="dryRun" aria-label="dry run">dry run</label>
 <button id="runBtn" style="background:#0d2b3a;border-color:#1d5f7a;color:#7dd3fc;font-weight:600" title="Force run (Ctrl/Cmd+Enter)">▶ Run</button>
-<button id="demo">Load demo</button>
-<button id="clear">Clear</button>
-<button id="copyListBtn" type="button" class="primary" title="Copy a keyword-shorthand summary of every file: I imports · IF imported symbols · W window · Dm document · C/EC consts · L/EL lets · V vars · Cl/ECl/EDCl classes · M methods · GF generators · F/AF/EF/EAF functions · EDF default fn · E re-exports · H html IDs">Copy List</button>
 </header>
 <!-- ================= Files mode toolbars (shown above the shared panes) ================= -->
 <div id="filesBar">
@@ -183,12 +181,8 @@ body[data-mode="files"] .filterbar,body[data-mode="files"] .prefixbar{display:fl
 </select>
 
 <span class="fspacer"></span>
-<button id="btnDemo">Demo</button>
-<button id="btnReset" title="Empty all files (undo/redo reversible)">Reset</button>
+
 <button id="btnDupesMax" title="Select the largest duplicate by character count">Dupes max</button>
-<button id="btnDeleteEmpty" title="Delete all files with 0 characters">Delete empty</button>
-<button id="btnUndo">Undo</button>
-<button id="btnRedo">Redo</button>
 <button id="btnCopy" class="primary">Copy</button>
 </div>
 
@@ -223,7 +217,7 @@ body[data-mode="files"] .filterbar,body[data-mode="files"] .prefixbar{display:fl
 <div class="pane-head">Input<span class="meta" id="inMeta" role="status" aria-live="polite">idle</span></div>
 <textarea id="input" spellcheck="false" autocorrect="off" autocapitalize="off" title="Accepted markers: // path · # path · /* path */ · <!-- path --> · [path] · === FILE: path === · --- FILE: path --- · *** path ***" placeholder="Paste a repo dump with file markers…"></textarea>
 <div id="placeWrap">
-<div class="pane-head" style="border-top:1px solid var(--line)">Keep / create / prune in file<span class="meta">path → names · -name / !name to prune · + ignored</span></div>
+<div class="pane-head" id="placementHead" style="border-top:1px solid var(--line)">Keep / create / prune in file<span class="meta">path → names · -name / !name to prune · + ignored</span></div>
 <textarea id="placement" spellcheck="false" title="path · name = pin · -name / !name = prune. Full declarations (path → { function foo() {...} }) route as overwrite / append." placeholder="js/app.js → renderHeader · -CONFIG · !legacyInit&#10;app.js → { function foo() { return 1; } }"></textarea>
 </div>
 </div>
@@ -8285,7 +8279,7 @@ exports.parse = parse;
 <script>
 //jshint esversion: 11
 const topLevelCollisions = [];
-const MAX_PATH_LEN = 512;
+// MAX_PATH_LEN removed: no upper limit on path length.
 
 const FENCE_OPEN_RE = /^(\s*)(`{3,}|~{3,})(\S*)\s*$/;
 const FENCE_CLOSE_RE = /^(\s*)(`{3,}|~{3,})\s*$/;
@@ -8358,7 +8352,7 @@ return KNOWN_BASENAMES_RE.test(base);
 const beforeDot = t.slice(0, t.length - extMatch[0].length);
 const lastSeg = beforeDot.split(/[\/\\]/).pop();
 if (!lastSeg || !/[a-zA-Z0-9]/.test(lastSeg)) return false;
-if (t.length > MAX_PATH_LEN) return false;
+// no path length upper limit (MAX_PATH_LEN removed)
 if (/^\d+$/.test(t)) return false;
 if (t.indexOf('/../') !== -1 || t.indexOf('\\..\\') !== -1) return false;
 return true;
@@ -8442,6 +8436,12 @@ if (curPath === null) return;
 if (!curPath.endsWith('/')) {
 if (Object.prototype.hasOwnProperty.call(files, curPath)) {
 duplicatePaths.push(curPath);
+const __dupText = stripFence(buf)
+.join('\n')
+.replace(/[ \t]+$/gm, '')
+.replace(/\n+$/, '')
+.replace(/\r\n/g, '\n');
+if (__dupText.trim()) files[curPath] = files[curPath].replace(/\s+$/, '') + '\n\n' + __dupText;
 } else {
 order.push(curPath);
 files[curPath] = stripFence(buf)
@@ -8469,7 +8469,8 @@ const lineHasFile = /\bFILE\b/i.test(line);
 const isCommentStyle =
 /^\s*(?:#|\/\/|\/\*|<!--)/.test(line) ||
 (!lineHasFile && /^\s*(?:-{3,}|={3,}|\*{3,})\s/.test(line));
-if (isCommentStyle && !prevLineBlank) continue;
+if (isCommentStyle && !prevLineBlank &&
+!/\.[a-zA-Z][a-zA-Z0-9]*$/.test(p) && !KNOWN_BASENAMES_RE.test(p.split('/').pop())) continue;
 if (p.length > 16384) continue;
 detected = p;
 const canonical =
@@ -10404,9 +10405,96 @@ return l;
 }).join('\n');
 }
 
+/* =========================================================================
+ Organize dump mode: the Organize textarea holds a full file layout
+ (// FILE: path … / //path … sections). Parse it into placement rules:
+- each section claims the top-level names it declares (first-come-first-win)
+- top-level only (brace-depth respected): inner/IIFE vars never leak
+- returns declTexts so brand-new symbols can be appended to their section
+ ========================================================================= */
+function __extractTopDecls(text) {
+const src = String(text || '');
+const out = [];
+const parsed = tryParseLadder(src);
+const ast = parsed && parsed.ast;
+if (ast && ast.type === 'Program' && Array.isArray(ast.body)) {
+for (const st of ast.body) {
+let d = st;
+if (st && (st.type === 'ExportNamedDeclaration' || st.type === 'ExportDefaultDeclaration')) d = st.declaration;
+if (!d) continue;
+const stmtText = src.slice(st.start, st.end).replace(/[ \t]+$/gm, '');
+if (d.type === 'FunctionDeclaration' && d.id) out.push({ name: d.id.name, kind: 'function', text: stmtText });
+else if (d.type === 'ClassDeclaration' && d.id) out.push({ name: d.id.name, kind: 'class', text: stmtText });
+else if (d.type === 'VariableDeclaration') {
+for (const dd of d.declarations) {
+if (dd.id && dd.id.type === 'Identifier') out.push({ name: dd.id.name, kind: d.kind, text: stmtText });
+}
+}
+}
+return out;
+}
+// regex fallback (AST failed): depth-0 declarations only; brace depth is
+// tracked so vars inside functions/IIFEs are never captured.
+const declRe2 = /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(function\s*\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)/;
+let depth = 0;
+let pending = null;
+for (const line of src.split('\n')) {
+const opens = (line.match(/{/g) || []).length;
+const closes = (line.match(/}/g) || []).length;
+if (depth <= 0) {
+const m = declRe2.exec(line);
+if (m) pending = { name: m[2], kind: m[1].replace(/\s*\*+$/, '').trim(), buf: [line] };
+else pending = null;
+} else if (pending) {
+pending.buf.push(line);
+}
+depth += opens - closes;
+if (depth < 0) depth = 0;
+if (depth === 0 && pending) {
+out.push({ name: pending.name, kind: pending.kind, text: pending.buf.join('\n') });
+pending = null;
+}
+}
+return out;
+}
+
 function parsePlacementRules(text) {
 const map = new Map();
 const overrideCandidates = [];
+// ---- dump mode: comment-style file headers plus real declaration code →
+// ---- treat the whole text as a target layout (new sections are created;
+// ---- symbols are moved/appended). Bare-path + name-list legacy style and
+// ---- arrow rules are not affected.
+{
+const __dumpDeclRe = /(?:^|\n)\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s*\*?|class|const|let|var)\s+[A-Za-z_$][\w$]*\s*[({=\[]/;
+let __headerCount = 0;
+let __hasDeclCode = false;
+for (const l of String(text || '').split(/\n/)) {
+const t = l.trim();
+if (__dumpDeclRe.test('\n' + l)) __hasDeclCode = true;
+if (!t || t.indexOf('//') !== 0 || /(→|->)/.test(t)) continue;
+const tok = t.replace(/^\/\/+/, '').trim().replace(/^FILE\s*[:=]\s*/i, '').replace(/^\/+/, '').trim();
+if (tok && tok.indexOf(' ') === -1 && looksLikePath(tok)) __headerCount++;
+}
+if (__headerCount >= 2 || (__headerCount >= 1 && __hasDeclCode)) {
+const dump = parseRepoDump(text);
+const declTexts = new Map();
+const declKinds = new Map();
+for (const F of dump) {
+if (F.path === '(outside)' || !String(F.text || '').trim()) continue;
+const tKey = normalizePath(F.path);
+if (!tKey || tKey === '.' || tKey === '..') continue;
+if (!map.has(tKey)) map.set(tKey, new Set());
+for (const d of __extractTopDecls(F.text)) {
+if (declTexts.has(d.name)) continue; // first-come-first-win across sections
+declTexts.set(d.name, d.text || '');
+declKinds.set(d.name, d.kind || 'const');
+map.get(tKey).add(d.name);
+}
+}
+return { rules: map, overrideCandidates, declTexts, declKinds, fromDump: true };
+}
+}
 let cur = null;
 let blockOpen = false;
 let blockLines = [];
@@ -10572,9 +10660,10 @@ if (!decl.declarations[0].id || decl.declarations[0].id.type !== 'Identifier') {
 }
 const existingPair = inputDeclByName.get(name);
 if (!existingPair) {
-let targetFile = path && fileByPath.get(path);
+if (!path) { stats.skippedUnroutable = (stats.skippedUnroutable || 0) + 1; continue; }
+let targetFile = fileByPath.get(path);
 if (!targetFile) {
-targetFile = { path: path || '__override__', text: '', fileIdx: nextFileIdx, decls: [], imports: [], refs: new Set(), mutatedRefs: new Set(), parseOk: true, kind: 'js', isModuleScript: false, looseCount: 0, removals: [], overwrites: [] };
+targetFile = { path: path, text: '', fileIdx: nextFileIdx, decls: [], imports: [], refs: new Set(), mutatedRefs: new Set(), parseOk: true, kind: 'js', isModuleScript: false, looseCount: 0, removals: [], overwrites: [] };
 info.push(targetFile);
 fileByPath.set(targetFile.path, targetFile);
 nextFileIdx++;
@@ -10617,10 +10706,11 @@ let fbIdx = 0;
 for (const f of fallbackList) {
 if (seenFallback.has(f.text)) { stats.noop++; stats.conflicted++; continue; }
 seenFallback.add(f.text);
-const fbPath = '__known__/override_' + (++fbIdx) + '.txt';
-info.push({ path: fbPath, text: f.text, fileIdx: nextFileIdx, decls: [], imports: [], refs: new Set(), mutatedRefs: new Set(), parseOk: true, kind: 'text', isModuleScript: false, looseCount: 0, removals: [], overwrites: [] });
-nextFileIdx++;
+fbIdx++;
 }
+// Never materialize phantom files (__known__/override_N.txt): unroutable
+// override texts are counted and dropped, not written into the output.
+stats.skippedUnroutable = (stats.skippedUnroutable || 0) + fbIdx;
 return { stats };
 }
 
@@ -10628,11 +10718,32 @@ function organize(filesRaw, idMode, kwUnify, dryRun, placementParsed, knownGloba
 const placementRules = (placementParsed && placementParsed.rules) || new Map();
 const __placementCandidates = (placementParsed && placementParsed.overrideCandidates) || [];
 topLevelCollisions.length = 0;
-if (!filesRaw || !filesRaw.length) return { text: '', stats: { duplicates: [], conflictList: [], hoisted: 0, deduped: 0, conflictsKept: 0, dedupRefusedReassigned: 0, dedupByReason: {}, cycles: 0, blocked: 0, blockedByReason: {}, globals: 0, pinned: 0, pruned: 0, verifyOk: true, verifyReason: '', danglingIdRefs: 0, topLevelCollisions: 0, looseParse: 0, softjsHarvested: 0, undefinedRefs: 0, duplicateAnchors: 0, idBindings: 0, jsRewrites: 0, htmlRewrites: 0, cssRewrites: 0, jsIdRefs: 0, staleSoftjsRefs: 0, staleSoftjsFiles: 0, staleLooseFiles: 0, dedupedNames: 0, appliedRewrites: 0, culledRewrites: 0, skippedInvalidIdent: 0, skippedNoRefs: 0, skippedShadowRef: 0, kwSkippedReassigned: 0, conflicts: 0, windowAssignments: 0, duplicatePaths: 0, suspiciousMarkers: 0, kinds: {} } };
+if (!filesRaw || !filesRaw.length) return { text: '', stats: { duplicates: [], conflictList: [], hoisted: 0, deduped: 0, conflictsKept: 0, dedupRefusedReassigned: 0, dedupByReason: {}, cycles: 0, blocked: 0, blockedByReason: {}, globals: 0, pinned: 0, pruned: 0, verifyOk: true, verifyReason: '', danglingIdRefs: 0, topLevelCollisions: 0, looseParse: 0, softjsHarvested: 0, undefinedRefs: 0, duplicateAnchors: 0, idBindings: 0, jsRewrites: 0, htmlRewrites: 0, cssRewrites: 0, jsIdRefs: 0, staleSoftjsRefs: 0, staleSoftjsFiles: 0, staleLooseFiles: 0, dedupedNames: 0, appliedRewrites: 0, culledRewrites: 0, skippedInvalidIdent: 0, skippedNoRefs: 0, skippedShadowRef: 0, kwSkippedReassigned: 0, conflicts: 0, windowAssignments: 0, duplicatePaths: 0, suspiciousMarkers: 0, skippedUnroutable: 0, mergedDupPaths: 0, kinds: {} } };
 const unify = applyIdUnification(filesRaw, idMode, kwUnify);
 const files = dryRun ? filesRaw : unify.files;
 
-const info = files.map((f, fileIdx) => {
+// Duplicate path collisions never silently overwrite or drop blocks: the
+// distinct sections are merged into ONE entry (flagged in the status line)
+// before dependency resolution runs.
+const __mergeState = { dup: 0 };
+let __infoFiles = files;
+{
+const __sp = new Map();
+const __mergedFiles = [];
+for (const f of files) {
+const k = normalizePath(f.path || '');
+if (__sp.has(k)) {
+const first = __sp.get(k);
+first.text = (first.text ? first.text.replace(/\s+$/, '') : '') + '\n\n' + f.text;
+__mergeState.dup++;
+} else {
+__sp.set(k, f);
+__mergedFiles.push(f);
+}
+}
+__infoFiles = __mergedFiles;
+}
+const info = __infoFiles.map((f, fileIdx) => {
 const kind = detectFileKind(f.path, f.text);
 if (f.path === 'globals.js' && /^\s*\/\/Global\b|^\s*\/\/unknown global\b|^\s*\/\/unknown\b/m.test(f.text)) {
 return { path: f.path, text: f.text, fileIdx, decls: [], imports: [], refs: new Set(), mutatedRefs: new Set(), parseOk: true, kind: 'text', isModuleScript: false, looseCount: 0, removals: [] };
@@ -10765,7 +10876,9 @@ return raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*$/gm, '$1
 .replace(/,\s*,/g, ',')
 .trim();
 };
+const __isGlobalsFile = F => F && normalizePath(F.path || '') === 'globals.js';
 for (const imp of allImports) {
+if (__isGlobalsFile(imp.file)) continue;
 const raw = __normImport(imp.file.text.slice(imp.start, imp.end));
 const importKey = imp.source + '::' + raw;
 if (seen.has(importKey)) {
@@ -10777,6 +10890,7 @@ uniqueImports.push(imp);
 }
 }
 for (const imp of allImports) {
+if (__isGlobalsFile(imp.file)) continue;
 if (__dupImportStarts.has(imp.fileIdx + '::' + imp.start)) continue;
 imp.file.removals.push({ start: imp.start, end: imp.end });
 }
@@ -10896,6 +11010,92 @@ prunedCount++;
 D.file.removals.push({ start: D.start, end: D.end });
 break;
 }
+}
+}
+}
+/* placement-driven unambiguous file creation / moves: a bare `path → name`
+directive physically relocates the symbol into that file (creating it when
+missing) whenever exactly one definition exists project-wide and no
+conflicting symbol already sits at the target path. Ambiguous cases are
+only pinned, never moved. */
+const __movesByPath = new Map();
+if (placementRules && placementRules.size && !dryRun) {
+const __nameCounts = new Map();
+for (const D of decls) for (const n of D.names) __nameCounts.set(n, (__nameCounts.get(n) || 0) + 1);
+const __declAt = new Map();
+for (const D of decls) {
+const k = normalizePath(D.path || '');
+if (!__declAt.has(k)) __declAt.set(k, new Set());
+for (const n of D.names) __declAt.get(k).add(n);
+}
+// Move policy (negative space): W: (window) / alias / reexport hooks are never
+// moved; first-come-first-win claims; function beats constant; same-priority
+// duplicates move all in source order; ambiguous mixed kinds refuse.
+const __declTexts = (placementParsed && placementParsed.declTexts) || null;
+const __claimedNames = new Set();
+const __claimedDecls = new Set();
+const __appendedTexts = new Set();
+let __newFileSeq = 0;
+const __ensureTarget = (tKey, rulePathRaw) => {
+let target = null;
+for (const F of info) if (normalizePath(F.path || '') === tKey) { target = F; break; }
+if (!target) {
+target = { path: rulePathRaw, text: '', fileIdx: files.length + __newFileSeq, decls: [], imports: [], refs: new Set(), mutatedRefs: new Set(), parseOk: true, kind: detectFileKind(rulePathRaw, ''), isModuleScript: false, looseCount: 0, removals: [] };
+info.push(target);
+__newFileSeq++;
+}
+return target;
+};
+for (const [rulePathRaw, names] of placementRules) {
+const tKey = normalizePath(rulePathRaw || '');
+for (const raw of names) {
+const n = String(raw);
+if (!n || n.charAt(0) === '-' || n.charAt(0) === '!' || n.charAt(0) === '+') continue;
+if (__claimedNames.has(n)) continue; // late conflict entry: first placement wins
+const candidates = [];
+for (const D of decls) if (D.names.indexOf(n) !== -1 && D.kind !== 'window' && D.kind !== 'alias' && D.kind !== 'reexport') candidates.push(D);
+if (!candidates.length) {
+// brand-new symbol declared in the Organize dump: append its unique text
+if (!__nameCounts.has(n)) {
+const __dt = __declTexts ? __declTexts.get(n) : null;
+if (__dt && String(__dt).trim()) {
+const __key2 = __dt.replace(/\s+/g, ' ').trim();
+if (!__appendedTexts.has(__key2)) {
+const target = __ensureTarget(tKey, rulePathRaw);
+if ((String(target.text || '')).replace(/\s+/g, ' ').trim().indexOf(__key2) === -1) {
+if (!__movesByPath.has(tKey)) __movesByPath.set(tKey, []);
+__movesByPath.get(tKey).push(__dt);
+__appendedTexts.add(__key2);
+}
+__claimedNames.add(n);
+}
+}
+}
+continue;
+}
+if (__declAt.has(tKey) && __declAt.get(tKey).has(n)) continue; // conflicting symbol at target
+let picks = candidates.filter(D => D.kind === 'function'); // function priority over constants
+if (!picks.length) {
+const __kinds = new Set(candidates.map(D => D.kind));
+if (__kinds.size === 1) picks = candidates; // same-priority duplicates: move all
+else continue; // ambiguous mixed kinds: refuse
+}
+let movedAny = false;
+for (const src of picks) {
+if (__claimedDecls.has(src)) continue;
+if (normalizePath(src.path || '') === tKey) { movedAny = true; continue; } // already home
+src.pinned = true;
+src.__moveTo = tKey;
+__claimedDecls.add(src);
+const __s0 = withLeadingLineComments(src.file.text, src.start);
+src.__moveText = src.file.text.slice(__s0, src.end).replace(/[ \t]+$/gm, '');
+src.file.removals.push({ start: __s0, end: src.end });
+__ensureTarget(tKey, rulePathRaw);
+if (!__movesByPath.has(tKey)) __movesByPath.set(tKey, []);
+__movesByPath.get(tKey).push(src.__moveText);
+movedAny = true;
+}
+if (movedAny) __claimedNames.add(n);
 }
 }
 }
@@ -11152,7 +11352,7 @@ return seen;
 return hoistAndDedupe({
 info, decls, chosen, usedIn, crossNames, declaredNames,
 domAnchors, globallyMutated, __importAdj,
-placementRules, uniqueImports, importsSafe, dryRun,
+placementRules, uniqueImports, importsSafe, dryRun, __movesByPath,
 pinnedCount, prunedCount, looseParse, softjsHarvestedNames,
 topLevelCollisions, windowAssignments, filesRaw, unify,
 __reachSet, normBody, jsRegionsOf, isLineIsolated, isPureInit,
@@ -11184,6 +11384,7 @@ globallyMutated,// Set<string>
 __importAdj,// Map<number, Set<number>>
 placementRules = null,// Map<string, string[]> | null
 uniqueImports = [], // Array<{file, start, end}>
+__movesByPath = null,// Map<string, string[]> | null
 importsSafe = false,
 dryRun = false,
 
@@ -11339,11 +11540,21 @@ if (D.isDuplicate || D.isConflict || D.pinned || D.pruned) return false;
 if (__monolithicHtml) return false;
 if (D.isExport || D.isExportDefault) return false;
 if (D.file.isModuleScript) return false;
-if (__isOrphan(D)) return true;
+if (D.file.kind === 'html') return false;
+// Promote ONLY symbols referenced from 2+ distinct files (crossNames =
+// usedIn.size >= 2). Single-file and never-referenced code stays in its own
+// file: organize never deletes, and globals.js is for genuinely shared code.
 if (D.names.some(n => crossNames.has(n))) return true;
-if (__isOutsideOnly(D)) return true;
-if (D.names.some(n => usedIn.has(n))) return true;
 return false;
+};
+const __isHoistableDep = D => {
+if (!D || !D.file || !Array.isArray(D.names)) return false;
+if (D.isDuplicate || D.isConflict || D.pinned || D.pruned) return false;
+if (__monolithicHtml) return false;
+if (D.isExport || D.isExportDefault) return false;
+if (D.file.isModuleScript) return false;
+if (D.file.kind === 'html') return false;
+return true;
 };
 
 const queue = decls.filter(__isHoistable);
@@ -11352,9 +11563,9 @@ while (__head < queue.length && __head < decls.length * 4) {
 const D = queue[__head++];
 if (hoistSet.has(D)) continue;
 hoistSet.add(D);
-for (const r of D.deps) {
+for (const r of (D.hoistDeps || D.deps || [])) {
 const dep = chosen.get(r);
-if (dep && __isHoistable(dep) && !hoistSet.has(dep)) queue.push(dep);
+if (dep && __isHoistableDep(dep) && !hoistSet.has(dep)) queue.push(dep);
 }
 }
 
@@ -11372,7 +11583,7 @@ for (const init of D.initializers) {
 if (!isPureInit(init)) return 'side-effect';
 }
 }
-for (const r of D.deps) {
+for (const r of (D.hoistDeps || D.deps || [])) {
 const dep = chosen.get(r);
 if (dep && dep !== D && !hoistSet.has(dep)) return 'dep stays put';
 }
@@ -11590,30 +11801,12 @@ if (F.text.trim()) out.push(F.text);
 out.push('');
 }
 } else {
+// Stub synthesis removed (never generate declarations that are not in the
+// source AST): unknown placement names are ignored, existing names are pinned
+// via placementRules. No stub buffers are produced, so the emission sites
+// below iterate empty maps and never run.
 const __createsByName = new Map();
 const __createsByKind = new Map();
-if (placementRules && placementRules.size) {
-const __declaredAll = new Set();
-for (const D of decls) for (const n of D.names) __declaredAll.add(n);
-for (const [__pth, __names] of placementRules) {
-for (const __n of __names) {
-if (__n.charAt(0) === '-' || __n.charAt(0) === '!') continue;
-let __bare = __n;
-let __kindHint = null;
-const m = /^(?:async\s+)?(?:export\s+)?(?:default\s+)?(function|const|let|var|class)\s+(.+)$/.exec(__n);
-if (m) { __kindHint = m[1]; __bare = m[2]; }
-if (__bare.charAt(0) === '+') __bare = __bare.slice(1);
-if (!__bare) continue;
-if (__declaredAll.has(__bare)) continue;
-if (!__createsByName.has(__pth)) {
-__createsByName.set(__pth, []);
-__createsByKind.set(__pth, []);
-}
-__createsByName.get(__pth).push(__bare);
-__createsByKind.get(__pth).push(__kindHint || 'function');
-}
-}
-}
 
 const globalsLines = [];
 if (importsSafe && uniqueImports.length) {
@@ -11656,8 +11849,6 @@ if (__t.trim()) { globalsLines.push(__t); globalsLines.push(''); }
 };
 
 const __grpGlobal = [];
-const __grpUnknownGlobal = [];
-const __grpUnknown = [];
 const __grpBlocked = [];
 
 const __domAnchorOrder = new Map();
@@ -11673,22 +11864,14 @@ if (!__domAnchorOrder.has(__mm[2])) __domAnchorOrder.set(__mm[2], __i);
 }
 
 const __seenGlobal = new Set();
-const __seenUnknownGlobal = new Set();
-const __seenUnknown = new Set();
 for (const D of globalAlpha) {
 const primary = D.names[0] || '';
-if (__isOrphan(D)) {
-if (__seenUnknown.has(primary)) continue;
-__seenUnknown.add(primary); __grpUnknown.push(D); continue;
-}
-if (D.file.path === '(outside)' || __isOutsideOnly(D)) {
-if (__seenUnknownGlobal.has(primary)) continue;
-__seenUnknownGlobal.add(primary); __grpUnknownGlobal.push(D); continue;
-}
+if (D.__moveTo) continue;
 if (__seenGlobal.has(primary)) continue;
 if (__seenEmit.has(D)) continue;
 __seenEmit.add(D); __seenGlobal.add(primary); __grpGlobal.push(D);
 }
+void __isOutsideOnly;
 
 const __sortByDepth = arr => (!Array.isArray(arr) || !arr.length) ? [] : arr.slice().sort((a, b) => {
 const oa = __domAnchorFor(a), ob = __domAnchorFor(b);
@@ -11704,57 +11887,34 @@ return cmpDecl(a, b);
 });
 
 __emitGroup('//Global', __sortByDepth(__grpGlobal));
-__emitGroup('//unknown global', __sortByDepth(__grpUnknownGlobal));
-__emitGroup('//unknown', __sortByDepth(__grpUnknown));
 
-const __hasGlobals = globalsLines.length > 0;
+// Merge with any existing input globals.js entry (any kind): emit exactly
+// ONE globals.js block so the verifier never sees duplicate paths.
+const __legacyGlobalsList = info.filter(F => F && normalizePath(F.path || '') === 'globals.js');
+const __hasGlobals = globalsLines.length > 0 || __legacyGlobalsList.length > 0;
 if (__hasGlobals) {
 out.push('// FILE: globals.js');
 for (const l of globalsLines) out.push(l);
+for (const __LG of __legacyGlobalsList) {
+const __body = removeRanges(String(__LG.text || ''), __LG.removals);
+if (!__body.trim()) continue;
+if (globalsLines.length) out.push('');
+out.push(__body.replace(/\s+$/, ''));
+}
 out.push('');
 }
 
-const __orphansByFile = new Map();
-if (__monolithicHtml) {
-for (const D of decls) {
-if (!D.file) continue;
-if (!D.names.length) continue;
-if (D.isDuplicate || D.isConflict) continue;
-if (!__isOrphan(D)) continue;
-const list = __orphansByFile.get(D.fileIdx) || [];
-list.push(D);
-__orphansByFile.set(D.fileIdx, list);
-}
-}
-
+let __outsideBody = '';
 for (const F of fileOrder) {
+if (__legacyGlobalsList.includes(F)) continue;
 let body = removeRanges(F.text, F.removals);
 
-const __orphans = __orphansByFile.get(F.fileIdx);
-if (__orphans && __orphans.length && F.kind === 'html') {
-const __scriptRegions = findScriptRegions(body);
-const __scriptHits = new Set();
-for (const D of __orphans) {
-const __snippet = F.text.slice(D.start, Math.min(D.end, D.start + 60));
-const __at = body.indexOf(__snippet);
-if (__at === -1) continue;
-for (const r of __scriptRegions) {
-if (__at >= r.jsStart && __at < r.jsEnd) { __scriptHits.add(r); break; }
-}
-}
-if (__scriptHits.size) {
-const __regionList = [...__scriptHits].sort((a, b) => b.jsStart - a.jsStart);
-for (const r of __regionList) {
-const __lineStart = r.jsStart === 0 ? 0 : body.lastIndexOf('\n', r.jsStart - 1) + 1;
-const __atScriptStart = __lineStart === r.jsStart;
-const __nlAfter = body.indexOf('\n', r.jsStart);
-const __insertAt = __atScriptStart
-? r.jsStart
-: (__nlAfter === -1 ? body.length : __nlAfter + 1);
-if (__insertAt < r.jsStart || __insertAt > body.length) continue;
-if (body.slice(__insertAt, __insertAt + 9) === '//unknown') continue;
-body = body.slice(0, __insertAt) + '//unknown\n' + body.slice(__insertAt);
-}
+// placement-driven moved declarations land in their target file here
+const __mvList = __movesByPath.get(normalizePath(F.path || ''));
+if (__mvList && __mvList.length) {
+for (const __mt of __mvList) {
+if (body.trim()) body = body.replace(/\s+$/, '') + '\n\n' + __mt;
+else body = __mt;
 }
 }
 
@@ -11774,14 +11934,21 @@ __createsByKind.delete(__fp);
 }
 
 if (F.path === '(outside)') {
-if (body.trim()) { out.push('// FILE: _outside.js'); out.push(body); out.push(''); }
+// (outside) context: rendered at the very top of the output, no header
+if (body.trim()) __outsideBody = body;
 continue;
 }
+
+// Empty-file cleanup: omit a section emptied by organize (moves/hoists).
+// Sections that were empty in the input are kept (still registered).
+if (!body.trim() && String(F.text || '').trim() && F.removals && F.removals.length) continue;
 
 out.push('// FILE: ' + F.path);
 if (body.trim()) out.push(body);
 out.push('');
 }
+
+if (__outsideBody) out.unshift(__outsideBody + '\n');
 
 if (__createsByName.size) {
 for (const [__pth, __names] of __createsByName) {
@@ -11994,7 +12161,6 @@ const outMeta = $('outMeta');
 const modeSelect = $('modeSelect');
 const kwSelect = $('kwSelect');
 const pruneSelect = $('pruneSelect');
-const dryRunEl = $('dryRun');
 const placementEl = $('placement');
 const knownGlobalsEl = $('knownGlobals');
 function acornReady() { try { return typeof window.acorn !== 'undefined' && window.acorn !== null && typeof window.acorn.parse === 'function' && window.acorn.parse.toString().indexOf('parser unavailable') === -1; } catch (_) { return false; } }
@@ -12130,12 +12296,11 @@ files.hadBOM = filesAll.hadBOM;
 files.hadCRLF = filesAll.hadCRLF;
 if (!files.length) { outputEl.value = 'No files to process.'; inMeta.textContent = '0 files'; outMeta.textContent = '0 files'; window.__setToolTitle('Repo Toolbox · Organize'); return; }
 window.projectFiles = files;
-const dryVal = dryRunEl ? !!dryRunEl.checked : false;
-outputEl.dataset.dry = dryVal ? '1' : '';
+outputEl.dataset.dry = '';
 const placementParsed = parsePlacementRules(placementEl ? placementEl.value : '');
 const knownGlobalsText = knownGlobalsEl ? knownGlobalsEl.value : '';
 let result;
-try { result = organize(files, modeSelect.value, kwSelect.value, dryVal, placementParsed, knownGlobalsText); }
+try { result = organize(files, modeSelect.value, kwSelect.value, false, placementParsed, knownGlobalsText); }
 catch (e) { outputEl.value = 'Organize failed: ' + (e && e.message ? e.message : String(e)) + '\n' + (e.stack || ''); inMeta.textContent = files.length + ' files'; outMeta.textContent = 'error'; if (window.console) console.error(e); return; }
 outputEl.value = result.text;
 outputEl.scrollTop = 0;
@@ -12175,18 +12340,20 @@ if (s.windowAssignments) healthParts.push(s.windowAssignments + ' window-assign'
 if (s.verifyOk === false) healthParts.push('VERIFY FAILED: ' + (s.verifyReason || '?'));
 const healthPart = healthParts.length ? ' · ' + healthParts.join(' · ') : '';
 outMeta.textContent = result.text.split('\n').length + ' lines · ' +
-s.hoisted + ' global · ' + s.deduped + ' deduped' + idPart + healthPart + ' · ' + ms + ' ms';
+s.hoisted + ' global · ' + s.deduped + ' deduped' + (s.skippedUnroutable ? ' · ' + s.skippedUnroutable + ' unroutable' : '') + (s.mergedDupPaths ? ' · ' + s.mergedDupPaths + ' merged' : '') + idPart + healthPart + ' · ' + ms + ' ms';
 if (s.suspiciousMarkers) { outMeta.textContent = '⚠sus ' + outMeta.textContent; }
 if (s.verifyOk === false) { outMeta.textContent = '⚠ ' + outMeta.textContent; }
 window.__setToolTitle('Repo Toolbox · Organize');
-if (dryRunEl && dryRunEl.checked) outMeta.textContent = 'dry-run · ' + outMeta.textContent;
 if (s.blockedByReason && s.blockedByReason['parse error']) outMeta.textContent = '⚠ parse-error · ' + outMeta.textContent;
 }
 
-const RUN_DEBOUNCE_MS = 150;
+const RUN_DEBOUNCE_MS = 500;
+const AUTORUN_MAX_CHARS = 100000;
 let __runTimer = 0;
 function scheduleRun() {
 if (__runTimer) clearTimeout(__runTimer);
+// Auto-run only while the text is under the size cap; larger text needs an explicit run.
+if (inputEl && String(inputEl.value || '').length >= AUTORUN_MAX_CHARS) return;
 __runTimer = setTimeout(function(){ __runTimer = 0; try { run(); } catch (e) { if (window.console) console.error('run failed', e); } }, RUN_DEBOUNCE_MS);
 }
 function flushScheduleRun() {
@@ -12196,17 +12363,25 @@ inputEl.addEventListener('input', scheduleRun);
 inputEl.addEventListener('paste', scheduleRun);
 inputEl.addEventListener('drop', scheduleRun);
 if (placementEl) placementEl.addEventListener('input', scheduleRun);
+try { const __si = localStorage.getItem('rt_input'); if (__si && inputEl && !inputEl.value) inputEl.value = __si; } catch (_) {}
+try { const __sp = localStorage.getItem('rt_placement'); if (__sp && placementEl && !placementEl.value) placementEl.value = __sp; } catch (_) {}
+{
+let __saveT = 0;
+const __persist = () => { try { localStorage.setItem('rt_input', String(inputEl ? inputEl.value : '')); localStorage.setItem('rt_placement', String(placementEl ? placementEl.value : '')); } catch (_) {} };
+if (inputEl) inputEl.addEventListener('input', () => { try { clearTimeout(__saveT); __saveT = setTimeout(__persist, 400); } catch (_) {} });
+if (placementEl) placementEl.addEventListener('input', () => { try { clearTimeout(__saveT); __saveT = setTimeout(__persist, 400); } catch (_) {} });
+}
 if (knownGlobalsEl) knownGlobalsEl.addEventListener('input', scheduleRun);
 if (inputEl) inputEl.addEventListener('keydown', function(ev){ if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { ev.preventDefault(); flushScheduleRun(); try { run(); } catch (e) {} } });
 modeSelect.addEventListener('change', run);
 kwSelect.addEventListener('change', run);
 pruneSelect.addEventListener('change', run);
 if (document.getElementById('pruneN')) document.getElementById('pruneN').addEventListener('change', run);
-if (dryRunEl) dryRunEl.addEventListener('change', run);
 const runBtn = $('runBtn');
 if (runBtn) runBtn.addEventListener('click', function(){ flushScheduleRun(); try { run(); } catch (e) { if (window.console) console.error(e); } });
 const demoBtn = $('demo');
 if (demoBtn) demoBtn.addEventListener('click', () => {
+if (typeof window !== 'undefined' && window.__topMode === 'files' && typeof window.__filesDemoLoader === 'function') { window.__filesDemoLoader(); return; }
 inputEl.value = DEMO;
 if (window.__topMode === 'prune') { window.__topMode = (function(){ try { var m = localStorage.getItem('topMode'); return (m === 'prune' || m === 'organize' || m === 'files') ? m : 'organize'; } catch (_) { return 'organize'; } })(); if (typeof window.__topModeInit === 'function') window.__topModeInit(); }
 try { flushScheduleRun(); } catch (_) {}
@@ -12631,15 +12806,55 @@ R[key] = merged;
 }
 return R;
 }
-function generateCopyList(files) {
-const legend = '# Keyword shorthands: [Modifiers: export: E; default: D; import: I; async: A; static: S; generator: G] + [Targets: const: C; let: L; var: V; window: W; document: Dm; function: F; class: Cl; method: M; html IDs: H]\n\n';
+function generateCopyList(files, opts) {
+const __opts = (opts && typeof opts === 'object') ? opts : {};
+const __mode = __opts.mode || 'full';
 const SEP = '·';
-const blocks = [];
 const list = Array.isArray(files) ? files : [];
+// one block per normalized path: duplicate input sections merge their symbols
+const __byPath = new Map();
+const __order = [];
 for (const F of list) {
 if (!F || typeof F.path !== 'string' || F.path === '(outside)') continue;
-const b = __clForFile(F);
-const lines = ['//' + F.path];
+const key = (typeof normalizePath === 'function') ? normalizePath(F.path) : F.path;
+if (!__byPath.has(key)) { __byPath.set(key, { path: F.path, parts: [__clForFile(F)], texts: [String(F.text || '')] }); __order.push(key); }
+else { const e = __byPath.get(key); e.parts.push(__clForFile(F)); e.texts.push(String(F.text || '')); }
+}
+const merged = [];
+for (const key of __order) {
+const e = __byPath.get(key);
+const b = __clNewResult();
+const seen = new Set();
+for (const p of e.parts) for (const k of Object.keys(p)) for (const n of p[k]) { const kk = k + '::' + n; if (!seen.has(kk)) { seen.add(kk); b[k].push(n); } }
+merged.push({ path: e.path, key: key, b: b, text: e.texts.join('\n\n') });
+}
+// placement-driven relocation (mirror of organize moves; unambiguous only)
+const __pl = __opts.placement || null;
+if (__pl && __pl.rules && __pl.rules.size) {
+const __movable = k => k !== 'ids' && k !== 'imports' && k !== 'importItems' && k !== 'window' && k !== 'doc';
+const __counts = new Map();
+for (const m of merged) for (const k of Object.keys(m.b)) { if (!__movable(k)) continue; for (const n of m.b[k]) __counts.set(n, (__counts.get(n) || 0) + 1); }
+const __holds = (m, n) => { for (const k of Object.keys(m.b)) if (__movable(k) && m.b[k].indexOf(n) !== -1) return true; return false; };
+for (const [rulePath, names] of __pl.rules) {
+const tKey = (typeof normalizePath === 'function') ? normalizePath(rulePath) : rulePath;
+let target = null;
+for (const m of merged) if (m.key === tKey) { target = m; break; }
+for (const raw of names) {
+const n = String(raw);
+if (!n || n.charAt(0) === '-' || n.charAt(0) === '!' || n.charAt(0) === '+') continue;
+if ((__counts.get(n) || 0) !== 1) continue;
+if (target && __holds(target, n)) continue;
+let src = null;
+for (const m of merged) if (m.key !== tKey && __holds(m, n)) { src = m; break; }
+if (!src) continue;
+if (!target) { target = { path: rulePath, key: tKey, b: __clNewResult(), text: '' }; merged.push(target); __order.push(tKey); }
+for (const k of Object.keys(src.b)) { const i = __movable(k) ? src.b[k].indexOf(n) : -1; if (i !== -1) { src.b[k].splice(i, 1); target.b[k].push(n); break; } }
+}
+}
+}
+const __blockLines = m => {
+const b = m.b;
+const lines = ['//' + m.path];
 if (b.ids.length) lines.push('H: ' + b.ids.join(SEP));
 if (b.imports.length) lines.push('I: ' + b.imports.join(SEP));
 if (b.importItems.length) lines.push('IF: ' + b.importItems.join(SEP));
@@ -12661,9 +12876,63 @@ if (b.efuncs.length) lines.push('EF: ' + b.efuncs.join(SEP));
 if (b.eafuncs.length) lines.push('EAF: ' + b.eafuncs.join(SEP));
 if (b.dfuncs.length) lines.push('EDF: ' + b.dfuncs.join(SEP));
 if (b.reexports.length) lines.push('E: ' + b.reexports.join(SEP));
-blocks.push(lines.join('\n'));
+if (__mode === 'full') {
+// single //unused tag: top-level decls never referenced inside this file,
+// not exported, and not W:/H:/Dm runtime hooks.
+const __exported = new Set();
+for (const k of ['reexports', 'econsts', 'elets', 'eclasses', 'efuncs', 'eafuncs']) for (const n of b[k]) __exported.add(n);
+const __pinned = new Set();
+for (const n of b.window) __pinned.add(n);
+for (const n of b.ids) __pinned.add(n);
+for (const n of b.doc) __pinned.add(n);
+const __unused = [];
+const __countOf = n => { let c = 0; const re = new RegExp('(^|[^\\w$])' + n.replace(/\$/g, '\\$') + '([^\\w$]|$)', 'g'); let mm; while ((mm = re.exec(m.text)) !== null) c++; return c; };
+for (const k of Object.keys(b)) {
+if (k === 'ids' || k === 'imports' || k === 'importItems' || k === 'window' || k === 'doc' || k === 'reexports') continue;
+for (const n of b[k]) {
+if (__exported.has(n) || __pinned.has(n) || __unused.indexOf(n) !== -1) continue;
+if (__countOf(n) <= 1) __unused.push(n);
 }
-return legend + blocks.join('\n\n');
+}
+if (__unused.length) lines.push('//unused ' + __unused.join(SEP));
+}
+return lines;
+};
+if (__mode === 'pathway only') return merged.map(m => '//' + m.path).join('\n');
+if (__mode === 'full') {
+const out = [];
+for (const m of merged) { const ls = __blockLines(m); for (const l of ls) out.push(l); }
+return out.join('\n');
+}
+const HEADER = '[Keywords: import:I;export:E]';
+const __exportsOf = m => {
+const items = [];
+for (const k of ['reexports', 'econsts', 'elets', 'eclasses', 'efuncs', 'eafuncs']) for (const s of m.b[k]) items.push(s);
+return items;
+};
+const __importsOf = m => {
+const items = [];
+for (const s of m.b.imports) items.push((/^\.{1,2}\//.test(s) || /^\//.test(s) || /\.[a-z0-9]+$/i.test(s)) ? '//' + String(s).replace(/^\/\/+/, '').trim() : s);
+for (const s of m.b.importItems) items.push(s);
+return items;
+};
+if (__mode === 'Isolated') {
+const out = [HEADER, ''];
+for (const m of merged) {
+if (!__importsOf(m).length && !__exportsOf(m).length) out.push('//' + m.path);
+}
+return out.join('\n');
+}
+const out = [HEADER];
+for (const m of merged) {
+const imp = __importsOf(m);
+const exp = __exportsOf(m);
+const lines = ['//' + m.path];
+if ((__mode === 'deps: I' || __mode === 'deps: I+E') && imp.length) { lines.push('I:'); for (const s of imp) lines.push(s); }
+if ((__mode === 'deps: E' || __mode === 'deps: I+E') && exp.length) { lines.push('E:'); for (const s of exp) lines.push(s); }
+if (lines.length > 1) { out.push(''); for (const l of lines) out.push(l); }
+}
+return out.join('\n');
 }
 
 // ---- Copy List button --------------------------------------------------------
@@ -12676,8 +12945,12 @@ try { files = parseRepoDump(inputEl.value).filter(F => F && F.path !== '(outside
 }
 const flash = msg => { const orig = copyListBtn.textContent; copyListBtn.textContent = msg; setTimeout(() => { copyListBtn.textContent = orig; }, 1100); };
 if (!files || !files.length) { flash('Empty'); return; }
+let __clMode = 'full';
+try { const __clSel = document.getElementById('copyListMode'); if (__clSel) __clMode = __clSel.value || 'full'; } catch (_) {}
+let __clPl = null;
+try { __clPl = (typeof parsePlacementRules === 'function') ? parsePlacementRules(placementEl ? placementEl.value : '') : null; } catch (_) { __clPl = null; }
 let out = '';
-try { out = generateCopyList(files); } catch (e) { if (window.console) console.error('copy list failed', e); }
+try { out = generateCopyList(files, { mode: __clMode, placement: __clPl }); } catch (e) { if (window.console) console.error('copy list failed', e); }
 if (!out) { flash('Empty'); return; }
 copyTextSmart(out).then(ok => flash(ok ? 'Copied ✓' : 'Copy failed'));
 });
@@ -13087,7 +13360,6 @@ const pruneSelect = document.getElementById('pruneSelect');
 const pruneNEl = document.getElementById('pruneN');
 const knownGlobalsEl = document.getElementById('knownGlobals');
 const knownGlobalsHead = document.getElementById('knownGlobalsHead');
-const dryRunLabel = document.getElementById('dryRunLabel');
 const runBtnEl = document.getElementById('runBtn');
 const demoBtnEl = document.getElementById('demo');
 const clearBtnEl = document.getElementById('clear');
@@ -13119,11 +13391,15 @@ if (modeSelect) modeSelect.style.display = (prn || filesMode) ? 'none' : '';
 if (kwSelect) kwSelect.style.display = (prn || filesMode) ? 'none' : '';
 if (pruneNEl) { pruneNEl.style.display = prn ? '' : 'none'; if (prn && !pruneNEl.value) { try { const sv = localStorage.getItem('pruneN'); if (sv) pruneNEl.value = sv; } catch (_) {} } }
 if (pruneSelect) pruneSelect.style.display = prn ? '' : 'none';
+const __isOrg = active === 'organize';
+const __placementEl = document.getElementById('placement');
+if (__placementEl) __placementEl.style.display = __isOrg ? '' : 'none';
+const __placementHead = document.getElementById('placementHead');
+if (__placementHead) __placementHead.style.display = __isOrg ? '' : 'none';
 if (knownGlobalsEl) knownGlobalsEl.style.display = prn ? 'none' : '';
 if (knownGlobalsHead) knownGlobalsHead.style.display = prn ? 'none' : '';
-if (dryRunLabel) dryRunLabel.style.display = filesMode ? 'none' : '';
 if (runBtnEl) runBtnEl.style.display = filesMode ? 'none' : '';
-if (demoBtnEl) demoBtnEl.style.display = filesMode ? 'none' : '';
+if (demoBtnEl) demoBtnEl.style.display = '';
 if (clearBtnEl) clearBtnEl.style.display = filesMode ? 'none' : '';
 const badge = document.getElementById('modeBadge');
 if (badge) { badge.textContent = active; badge.classList.toggle('prune', prn); }
@@ -13297,7 +13573,7 @@ return KNOWN_BASENAMES_RE.test(base);
 const beforeDot = t.slice(0, t.length - extMatch[0].length);
 const lastSeg = beforeDot.split(/[\/\\]/).pop();
 if (!lastSeg || !/[a-zA-Z0-9]/.test(lastSeg)) return false;
-if (t.length > 512) return false;
+// no path length upper limit (was 512)
 if (/^\d+$/.test(t)) return false;
 return true;
 }
@@ -13354,14 +13630,18 @@ const re = _patterns[pi];
 const m = line.match(re);
 if (!m) continue;
 if (pi >= 12 && (!prevBlank || isCommentStyle || isTaggyPath(m[1]))) continue;
-if (isCommentStyle && !prevBlank) continue;
+// A comment line that is *exactly* a file path is a header even without a
+// preceding blank line (consecutive //path headers must all register).
+if (isCommentStyle && !prevBlank &&
+!/\.[a-zA-Z][a-zA-Z0-9]*$/.test(String(m[1]).trim()) &&
+!KNOWN_BASENAMES_RE.test(String(m[1]).trim().split('/').pop())) continue;
 let p = stripPathPrefix(m[1]);
 if (!p) continue;
 if (/\s/.test(p)) continue;
 if (!looksLikePath(p)) continue;
 const isDir = /[\/\\]$/.test(p);
 const norm = normalizePath(p);
-if (!norm || norm === '.' || norm === '..' || norm.length > 400) continue;
+if (!norm || norm === '.' || norm === '..') continue; // no path length cap
 return isDir ? norm + '/' : norm;
 }
 return null;
@@ -14909,9 +15189,11 @@ if (q) { e.preventDefault(); q.focus(); q.select(); }
 /* =========================================================================
  Wire up
  ========================================================================= */
-$('btnDemo').addEventListener('click', () => {
-loadDump(DEMO, { replace: true });
-});
+window.__filesDemoLoader = function () { loadDump(DEMO, { replace: true }); };
+{
+const __bd = $('btnDemo');
+if (__bd) __bd.addEventListener('click', window.__filesDemoLoader);
+}
 $('btnDeleteEmpty').addEventListener('click', () => {
 syncFromEditor();
 const empties = files.filter(f => !f.isOutside && (!f.text || f.text.length === 0));
@@ -14927,7 +15209,7 @@ renderTree();
 scheduleApplyRules();
 setStatus('deleted ' + empties.length + ' empty file(s)', 'ok');
 });
-$('btnReset').addEventListener('click', resetAll);
+if ($('btnReset')) $('btnReset').addEventListener('click', resetAll);
 $('btnUndo').addEventListener('click', undo);
 
 $('btnDupesMax').addEventListener('click', () => {
@@ -15108,7 +15390,7 @@ btnUpload.id = 'btnUpload';
 btnUpload.type = 'button';
 btnUpload.textContent = 'Upload .txt';
 btnUpload.title = 'Load a repo dump from a .txt file (any size)';
-$('btnReset').insertAdjacentElement('beforebegin', btnUpload);
+void btnUpload;
 
 btnUpload.addEventListener('click', () => {
 uploadInput.value = '';
@@ -15169,7 +15451,7 @@ btnDownload.id = 'btnDownload';
 btnDownload.type = 'button';
 btnDownload.textContent = 'Download .txt';
 btnDownload.title = 'Download all toggled-ON files as a .txt file';
-$('btnCopy').insertAdjacentElement('beforebegin', btnDownload);
+{ const __gtb = document.getElementById('globalToolsBar'); if (__gtb) __gtb.appendChild(btnDownload); else $('btnCopy').insertAdjacentElement('beforebegin', btnDownload); }
 
 btnDownload.addEventListener('click', () => {
 const chunks = [];
@@ -15197,7 +15479,7 @@ btnCopyPaths.id = 'btnCopyPaths';
 btnCopyPaths.type = 'button';
 btnCopyPaths.textContent = 'Copy paths';
 btnCopyPaths.title = 'Copy the tree of toggled-ON files as plain pathways (no content)';
-$('btnCopy').insertAdjacentElement('beforebegin', btnCopyPaths);
+void btnCopyPaths;
 
 btnCopyPaths.addEventListener('click', () => {
 const sel = files.filter(f => f.selected && !f.isOutside);
@@ -15243,7 +15525,7 @@ btnDeps.id = 'btnDeps';
 btnDeps.type = 'button';
 btnDeps.textContent = 'Copy deps';
 btnDeps.title = 'Copy dependency report to clipboard';
-$('btnCopy').insertAdjacentElement('beforebegin', btnDeps);
+void btnDeps;
 
 function orderPathsForDeps(paths, g) {
 const groups = new Map();
@@ -15286,7 +15568,7 @@ o.textContent = pair[1];
 depsSel.appendChild(o);
 }
 depsSel.addEventListener('change', () => { depsMode = depsSel.value; });
-$('btnDeps').insertAdjacentElement('afterend', depsSel);
+void depsSel;
 
 function buildDepsReport() {
 const g = getGraph();
