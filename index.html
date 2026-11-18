@@ -10408,9 +10408,9 @@ return l;
 /* =========================================================================
  Organize dump mode: the Organize textarea holds a full file layout
  (// FILE: path … / //path … sections). Parse it into placement rules:
-  - each section claims the top-level names it declares (first-come-first-win)
-  - top-level only (brace-depth respected): inner/IIFE vars never leak
-  - returns declTexts so brand-new symbols can be appended to their section
+- each section claims the top-level names it declares (first-come-first-win)
+- top-level only (brace-depth respected): inner/IIFE vars never leak
+- returns declTexts so brand-new symbols can be appended to their section
  ========================================================================= */
 function __extractTopDecls(text) {
 const src = String(text || '');
@@ -14093,6 +14093,7 @@ return row;
 
 function renderTree() {
 treeEl.textContent = '';
+try { if (typeof window.__persistFiles === 'function') window.__persistFiles(); } catch (_) {}
 if (!files.length) {
 const d = document.createElement('div');
 d.className = 'empty';
@@ -15248,6 +15249,7 @@ setStatus('rules · ' + changed + ' toggled · ' + res.matched.size + ' matched'
 function updateFilterPreview() {
 const el = $('fInfo');
 if (!el) return;
+try { if (typeof window.__persistFiles === 'function') window.__persistFiles(); } catch (_) {}
 if (!filterRules.length) { el.textContent = ''; el.className = 'hint'; return; }
 const res = computeRuleActions();
 if (res.error) { el.textContent = res.error; el.className = 'hint err'; return; }
@@ -15288,6 +15290,40 @@ if (q) { e.preventDefault(); q.focus(); q.select(); }
  Wire up
  ========================================================================= */
 window.__filesDemoLoader = function () { loadDump(DEMO, { replace: true }); };
+// --- localStorage persistence for Files mode (files + rules) ---
+window.__persistFiles = (function () {
+let t = 0;
+const write = function () {
+try {
+const payload = {
+files: files.filter(f => !f.isOutside).map(f => ({ p: f.path, t: f.text, s: !!f.selected })),
+rules: (typeof filterRules !== 'undefined') ? filterRules.map(r => ({ kind: r.kind, query: r.query, matchCase: !!r.matchCase, depth: r.depth || 0, dir: r.dir || 'both', op: r.op || '' })) : []
+};
+localStorage.setItem('rt_files', JSON.stringify(payload));
+} catch (_) {}
+};
+return function () { clearTimeout(t); t = setTimeout(write, 400); };
+})();
+window.__restoreFiles = function () {
+try {
+const raw = localStorage.getItem('rt_files');
+if (raw) {
+const data = JSON.parse(raw);
+if (data && Array.isArray(data.files) && data.files.length) {
+files = data.files.map(e => newFile(String(e.p || ''), String(e.t == null ? '' : e.t), e.s !== false));
+if (data.rules && Array.isArray(data.rules) && typeof filterRules !== 'undefined') {
+filterRules = data.rules.map(r => Object.assign(newRule(r.kind), r));
+}
+return true;
+}
+return false;
+}
+// fall back to the shared input textarea content (saved by Organize/Prune)
+const si = localStorage.getItem('rt_input');
+if (si && si.trim()) { loadDump(si, { replace: true }); return true; }
+} catch (_) {}
+return false;
+};
 window.__filesClearAll = function () {
 try {
 filterRules = [];
@@ -15430,6 +15466,7 @@ else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); redo(); }
  Boot
  ========================================================================= */
 files = [];
+if (typeof window.__restoreFiles === 'function') { try { window.__restoreFiles(); } catch (_) {} }
 treeRoot = buildTree();
 renderTree();
 renderEditor();
