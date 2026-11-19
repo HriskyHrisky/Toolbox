@@ -116,6 +116,7 @@ body[data-mode="files"] #filesBar{display:flex}
 .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .name.outside{color:#e3b341;font-style:italic}
 .dupsuf{color:#6b7690;font-size:10px;margin-left:4px;font-variant-numeric:tabular-nums}
+.isolab{color:#8a93ff;font-size:10px;margin-left:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dupcnt{color:#6b7690;font-size:10px;margin-left:4px;font-variant-numeric:tabular-nums}
 .badge{flex:none;font-size:10px;color:#5b6580;font-variant-numeric:tabular-nums}
 .badge.flash{color:#7ee2a8;font-weight:600}
@@ -166,7 +167,7 @@ body[data-mode="files"] .filterbar,body[data-mode="files"] .prefixbar{display:fl
 </div>
 <button id="demo" title="Load demo corpus (mode-aware: Organize / Prune / Files)">Demo</button>
 </div>
-<div id="globalToolsBar" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 0"><button id="btnUndo" title="Undo the last change">Undo</button><button id="btnRedo" title="Redo the last undo">Redo</button><button id="clear" title="Clear input and output">Clr</button><button id="copyListBtn" type="button" class="primary" title="Copy a keyword-shorthand summary of every file">Copy list</button><select id="copyListMode" title="Copy list format" style="font:inherit;font-size:12px;padding:3px 6px;border-radius:5px;background:#0b0e13;color:#e7ebf3;border:1px solid #334052"><option value="full">full</option><option value="deps: I">deps: I</option><option value="deps: E">deps: E</option><option value="deps: I+E">deps: I+E</option><option value="Isolated">Isolated</option><option value="pathway only">pathway only</option></select><button id="btnDeleteEmpty" title="Delete all files with 0 characters">Del empty</button></div>
+<div id="globalToolsBar" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 0"><button id="btnUndo" title="Undo the last change">Undo</button><button id="btnRedo" title="Redo the last undo">Redo</button><button id="clear" title="Clear input and output">Clr</button><button id="copyListBtn" type="button" class="primary" title="Copy a keyword-shorthand summary of every file">Copy list</button><select id="copyListMode" title="Copy list format" style="font:inherit;font-size:12px;padding:3px 6px;border-radius:5px;background:#0b0e13;color:#e7ebf3;border:1px solid #334052"><option value="full">full</option><option value="deps: I">deps: I</option><option value="deps: E">deps: E</option><option value="deps: I+E">deps: I+E</option><option value="pathway only">pathway only</option></select><button id="btnDeleteEmpty" title="Delete all files with 0 characters">Del empty</button></div>
 <div class="spacer"></div>
 <button id="runBtn" style="background:#0d2b3a;border-color:#1d5f7a;color:#7dd3fc;font-weight:600" title="Force run (Ctrl/Cmd+Enter)">▶ Run</button>
 </header>
@@ -222,7 +223,7 @@ body[data-mode="files"] .filterbar,body[data-mode="files"] .prefixbar{display:fl
 </div>
 </div>
 <div class="pane">
-<div class="pane-head" title="files are never dropped; only hoisted / deduped / pruned declarations move">Output<span class="meta" id="outMeta" title="//Global = cross-file · //unknown global = orphan/outside-only · //unknown = single-file orphan. blocked reasons: parse error, export default, export (module semantics), module script, shares line, window-assignment, side-effect, dep stays put, orphan-call, orphan-assign, duplicate, cycle">idle</span></div>
+<div class="pane-head" title="files are never dropped; hoisted / deduped / pruned declarations move in every mode">Output<span class="meta" id="outMeta" title="?: isolated / unreachable from HTML · //Global = cross-file · //unknown global = orphan/outside-only · //unknown = single-file orphan. blocked reasons: parse error, export default, export (module semantics), module script, shares line, window-assignment, side-effect, dep stays put, orphan-call, orphan-assign, duplicate, cycle">idle</span></div>
 <textarea id="output" readonly spellcheck="false" autocorrect="off" autocapitalize="off" title="Click: select all + copy. Click again: edit in place. Run or Esc resets to copy mode." placeholder="Organized output appears here… Click to select/copy. Click again to edit."></textarea>
 <details id="dupPanel" style="display:none;border-top:1px solid var(--line);background:#0a0d12">
 <summary style="padding:6px 12px;cursor:pointer;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.7px">
@@ -258,6 +259,7 @@ Files
 <span>The shared input textarea is the source of truth for ON files — delete a //pathway to remove it</span>
 <span><b>Normal</b> all OFF stay · <b>Del-dupes</b> matching OFF pruned · <b>Keep-dupes</b> matching OFF kept, others pruned</span>
 <span><b>Rules</b> query accepts a list (one entry per line) · depth direction: imports / imported by / both · ops <b>&gt;</b> <b>&lt;</b> <b>≥</b> <b>≤</b></span>
+<span><b>Labels</b> · 0/1/2 = shortest path from HTML · ?n = unreachable acyclic · ? (CycleK) = unreachable circle · n (CycleK) = reachable circle member</span>
 </footer>
 
 <script>
@@ -12877,6 +12879,23 @@ while ((__im = __idre.exec(text)) !== null) {
 const __v = String(__im[1] !== undefined ? __im[1] : (__im[2] || '')).trim();
 if (__v) __clPush(R.ids, __v);
 }
+// HTML tag references (script src, link/a/iframe/img href/src, form action…)
+const __tagre = /<(script|link|a|iframe|embed|object|img|source|track|video|audio|form|input|use)\b([^>]*)>/gi;
+let __tm;
+while ((__tm = __tagre.exec(text)) !== null) {
+const __attrs = __tm[2];
+const __want = __tm[1].toLowerCase() === 'object' ? '(?:src|data)' : (__tm[1].toLowerCase() === 'form' ? 'action' : '(?:src|href|poster)');
+const __am = __attrs.match(new RegExp('\\b' + __want + '\\s*=\\s*("([^"]*)"|\'([^\']*)\')', 'i'));
+if (__am) {
+const __v = String(__am[2] !== undefined ? __am[2] : (__am[3] || '')).trim();
+if (__v && !__v.startsWith('#') && !/^[a-z][a-z0-9+.-]*:/i.test(__v) && !__v.startsWith('//')) __clPush(R.imports, __v);
+}
+const __sm = __attrs.match(/\bsrcset\s*=\s*("([^"]*)"|'([^']*)')/i);
+if (__sm) {
+const __f = String(__sm[2] !== undefined ? __sm[2] : (__sm[3] || '')).trim().split(',')[0].trim().split(/\s+/)[0];
+if (__f && !/^[a-z][a-z0-9+.-]*:/i.test(__f) && !__f.startsWith('//')) __clPush(R.imports, __f);
+}
+}
 }
 if (!text.trim()) return R;
 let regions = null;
@@ -12896,6 +12915,166 @@ R[key] = merged;
 }
 return R;
 }
+/* ---- repo model: Tarjan SCC cycles + shortest-path depth from HTML ------
+ Labels: '0','1'… (HTML-reachable, + ' (CycleK)' badge inside a cycle),
+ '?0','?1'… (isolated acyclic, local supernode depth), '? (CycleK)'
+ (isolated circle cluster — flat ?, no arbitrary ?n). Entrances: nodes cited
+ into CycleK from outside get PRIMARY / SECONDARY (connected) or
+ ISOLATED_CITED (isolated) ranks. Loop-safe: iterative Tarjan + visited BFS. */
+window.__buildRepoModel = function (edgeMap, rootPaths) {
+const paths = Array.from(edgeMap.keys()).sort();
+const nodes = new Map();
+for (const p of paths) nodes.set(p, { out: edgeMap.get(p) || [], cycleId: null, label: null, depth: null, connected: false, isEntrance: false, entranceRank: null, citedBy: [] });
+const inMap = new Map();
+for (const p of paths) for (const t of (edgeMap.get(p) || [])) {
+if (!inMap.has(t)) inMap.set(t, []);
+inMap.get(t).push(p);
+}
+// --- PASS 1: iterative Tarjan SCC (cycles of size 2..N and self-loops) ---
+const sccs = [];
+{
+const idx = new Map(), low = new Map(), onStack = new Set(), stack = [];
+let counter = 0;
+for (const start of paths) {
+if (idx.has(start)) continue;
+const call = [[start, 0]];
+while (call.length) {
+const fr = call[call.length - 1];
+const v = fr[0];
+if (fr[1] === 0) { idx.set(v, counter); low.set(v, counter); counter++; stack.push(v); onStack.add(v); }
+let advanced = false;
+const outs = nodes.get(v).out;
+while (fr[1] < outs.length) {
+const w = outs[fr[1]++];
+if (!nodes.has(w)) continue;
+if (!idx.has(w)) { call.push([w, 0]); advanced = true; break; }
+if (onStack.has(w)) low.set(v, Math.min(low.get(v), idx.get(w)));
+}
+if (advanced) continue;
+if (low.get(v) === idx.get(v)) {
+const comp = []; let w2;
+do { w2 = stack.pop(); onStack.delete(w2); comp.push(w2); } while (w2 !== v);
+sccs.push(comp);
+}
+call.pop();
+if (call.length) { const parent = call[call.length - 1][0]; low.set(parent, Math.min(low.get(parent), low.get(v))); }
+}
+}
+}
+const cycles = []; const cycleOf = new Map();
+for (const comp of sccs) {
+const isCircle = comp.length > 1 || nodes.get(comp[0]).out.indexOf(comp[0]) !== -1;
+if (!isCircle) continue;
+const id = 'Cycle' + cycles.length;
+const members = comp.slice().sort();
+const c = { id, connected: false, members, entrances: [] };
+cycles.push(c);
+for (const m of members) { nodes.get(m).cycleId = id; cycleOf.set(m, c); }
+}
+// --- PASS 2: shortest-path BFS from HTML roots (0, 1, 2…) ---
+const depth = new Map(); const queue = [];
+for (const r of (rootPaths || []).slice().sort()) {
+if (!nodes.has(r) || depth.has(r)) continue;
+depth.set(r, 0);
+const n = nodes.get(r);
+n.connected = true; n.depth = 0;
+n.label = n.cycleId ? '0 (' + n.cycleId + ')' : '0';
+if (n.cycleId) { const c = cycleOf.get(r); c.connected = true; c.entrances.push({ node: r, citedBy: 'HTML_ROOT', depth: 0 }); }
+queue.push(r);
+}
+while (queue.length) {
+const cur = queue.shift();
+const d = depth.get(cur);
+const cn = nodes.get(cur);
+for (const nxt of cn.out) {
+const nn = nodes.get(nxt);
+if (!nn) continue;
+if (nn.cycleId && nn.cycleId !== cn.cycleId) {
+nn.citedBy.push(cur);
+cycleOf.get(nxt).entrances.push({ node: nxt, citedBy: cur, depth: d + 1 });
+}
+if (!depth.has(nxt)) {
+depth.set(nxt, d + 1);
+nn.connected = true; nn.depth = d + 1;
+nn.label = nn.cycleId ? (d + 1) + ' (' + nn.cycleId + ')' : String(d + 1);
+if (nn.cycleId) cycleOf.get(nxt).connected = true;
+queue.push(nxt);
+}
+}
+}
+// rank entrances for HTML-connected circles (shallowest = PRIMARY)
+for (const c of cycles) {
+if (!c.connected || !c.entrances.length) continue;
+c.entrances.sort((a, b) => (a.depth - b.depth) || a.node.localeCompare(b.node));
+const prim = c.entrances[0].node;
+const seen = new Set();
+for (const e of c.entrances) {
+if (seen.has(e.node)) continue;
+seen.add(e.node);
+const n = nodes.get(e.node);
+n.isEntrance = true;
+n.entranceRank = e.node === prim ? 'PRIMARY' : 'SECONDARY';
+}
+}
+// --- PASS 3: isolated region — flat '? (CycleK)' for circles, '?n' acyclic ---
+const snOf = new Map(); const supernodes = [];
+for (const comp of sccs) {
+const members = comp.filter(p => !depth.has(p));
+if (!members.length) continue;
+const isCircle = comp.length > 1 || nodes.get(comp[0]).out.indexOf(comp[0]) !== -1;
+const sn = { isCircle, members: members.slice().sort(), localDepth: null, inn: new Set(), out: new Set() };
+supernodes.push(sn);
+for (const m of sn.members) snOf.set(m, sn);
+if (isCircle) {
+const cyc = cycles.find(cc => cc.id === nodes.get(members[0]).cycleId);
+const memberSet = new Set(members);
+for (const m of sn.members) {
+const n = nodes.get(m);
+n.label = '? (' + (cyc ? cyc.id : 'Cycle') + ')';
+const ins = inMap.get(m) || [];
+for (const src of ins) {
+if (!depth.has(src) && !memberSet.has(src)) {
+n.isEntrance = true;
+n.entranceRank = 'ISOLATED_CITED';
+n.citedBy.push(src);
+if (cyc) cyc.entrances.push({ node: m, citedBy: src, depth: null });
+}
+}
+}
+}
+}
+for (const sn of supernodes) {
+for (const m of sn.members) {
+for (const t of nodes.get(m).out) {
+const tsn = snOf.get(t);
+if (tsn && tsn !== sn) { sn.out.add(tsn); tsn.inn.add(sn); }
+}
+}
+}
+const snQueue = [];
+for (const sn of supernodes) {
+if (sn.inn.size === 0) { sn.localDepth = 0; snQueue.push(sn); }
+}
+while (snQueue.length) {
+const cur = snQueue.shift();
+for (const nxt of cur.out) {
+// cycle supernodes are transparent bridges: they carry depth forward
+// without incrementing, so downstream acyclic nodes keep ?n unambiguous
+if (nxt.localDepth === null) { nxt.localDepth = cur.isCircle ? cur.localDepth : cur.localDepth + 1; snQueue.push(nxt); }
+}
+}
+const isoDepth = new Map();
+for (const sn of supernodes) {
+for (const m of sn.members) {
+isoDepth.set(m, sn.localDepth === null ? 0 : sn.localDepth);
+if (!sn.isCircle) nodes.get(m).label = '?' + (sn.localDepth === null ? 0 : sn.localDepth);
+}
+}
+const labelOf = new Map(); const cycleIdOf = new Map();
+for (const p of paths) { labelOf.set(p, nodes.get(p).label || '?'); cycleIdOf.set(p, nodes.get(p).cycleId); }
+return { labelOf, cycleIdOf, depthOf: depth, isoDepth, cycles, nodes, entranceRankOf: new Map(paths.map(p => [p, nodes.get(p).entranceRank])) };
+};
+
 function generateCopyList(files, opts) {
 const __opts = (opts && typeof opts === 'object') ? opts : {};
 const __mode = __opts.mode || 'full';
@@ -12942,11 +13121,15 @@ for (const k of Object.keys(src.b)) { const i = __movable(k) ? src.b[k].indexOf(
 }
 }
 }
-const __blockLines = m => {
+
+const __blockLines = (m, depLines) => {
 const b = m.b;
 const lines = ['//' + m.path];
 if (b.ids.length) lines.push('H: ' + b.ids.join(SEP));
-if (b.imports.length) lines.push('I: ' + b.imports.join(SEP));
+if (depLines && depLines.imports && depLines.imports.length) {
+lines.push('I:');
+for (const s of depLines.imports) lines.push(s);
+} else if (b.imports.length) lines.push('I: ' + b.imports.join(SEP));
 if (b.importItems.length) lines.push('IF: ' + b.importItems.join(SEP));
 if (b.window.length) lines.push('W: ' + b.window.join(SEP));
 if (b.doc.length) lines.push('Dm: ' + b.doc.join(SEP));
@@ -12965,7 +13148,10 @@ if (b.afuncs.length) lines.push('AF: ' + b.afuncs.join(SEP));
 if (b.efuncs.length) lines.push('EF: ' + b.efuncs.join(SEP));
 if (b.eafuncs.length) lines.push('EAF: ' + b.eafuncs.join(SEP));
 if (b.dfuncs.length) lines.push('EDF: ' + b.dfuncs.join(SEP));
-if (b.reexports.length) lines.push('E: ' + b.reexports.join(SEP));
+if (depLines && depLines.exports && depLines.exports.length) {
+lines.push('E:');
+for (const s of depLines.exports) lines.push(s);
+} else if (b.reexports.length) lines.push('E: ' + b.reexports.join(SEP));
 if (__mode === 'full') {
 // single //unused tag: top-level decls never referenced inside this file,
 // not exported, and not W:/H:/Dm runtime hooks.
@@ -12989,41 +13175,147 @@ if (__unused.length) lines.push('//unused ' + __unused.join(SEP));
 return lines;
 };
 if (__mode === 'pathway only') return merged.map(m => '//' + m.path).join('\n');
-if (__mode === 'full') {
-const out = [];
-for (const m of merged) { const ls = __blockLines(m); for (const l of ls) out.push(l); }
-return out.join('\n');
-}
-const HEADER = '[Keywords: import:I;export:E]';
-const __exportsOf = m => {
-const items = [];
-for (const k of ['reexports', 'econsts', 'elets', 'eclasses', 'efuncs', 'eafuncs']) for (const s of m.b[k]) items.push(s);
-return items;
+/* ---- sectioned serializer: [LEGENDS:] → ? CycleK: → ?: → Proper: --------
+ Semantics: E: = outgoing references (files this node points at),
+ I: = incoming references (files that point at this node). Nodes with no
+ visible E:/I: block in the current mode collapse to a # header. Depth
+ lines appear only in ?: and Proper: (cycle clusters are unnumbered). */
+const __isFull = __mode === 'full';
+const __showE = __isFull || __mode === 'deps: E' || __mode === 'deps: I+E';
+const __showI = __isFull || __mode === 'deps: I' || __mode === 'deps: I+E';
+const __legend = __isFull
+? '[LEGENDS: ?: Isolated / unreachable from HTML | Modifiers: E:export·D:default·I:import·R:require·A:async·S:static·G:generator·P:private·Pb:public·Pr:protected·Ro:readonly·Ab:abstract·Ov:override·Dc:declare·Ac:accessor·Gs:get/set·Ex:extends·Im:implements | Targets: C:const·L:let·V:var·Us:using·F:function·Cl:class·Ct:constructor·M:method·T:type·In:interface·En:enum·Ns:namespace·X:jsx·W:window·Dm:document·Gl:globalThis·N:node·Wb:web APIs·Wk:worker·H:html IDs]'
+: ((__mode === 'deps: I+E') ? '[LEGENDS: ?: Isolated / unreachable from HTML·I:import·E:export]'
+ : ((__mode === 'deps: I') ? '[LEGENDS: ?: Isolated / unreachable from HTML·I:import]'
+ : '[LEGENDS: ?: Isolated / unreachable from HTML·E:export]'));
+const __paths = new Set(merged.map(m => m.path));
+const __exts = ['', '.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx', '.json', '.css', '.scss', '.sass', '.less', '.html', '.htm', '.py', '.rs', '.php', '.go', '.vue', '.svelte', '.wasm'];
+const __idxs = ['index.js', 'index.mjs', 'index.cjs', 'index.jsx', 'index.ts', 'index.tsx', '__init__.py', 'mod.rs', 'index.html', 'index.htm'];
+const __norm = p => String(p).replace(/\\/g, '/').split('/').filter(x => x && x !== '.').reduce((acc, x) => { if (x === '..') acc.pop(); else acc.push(x); return acc; }, []).join('/');
+const __resolve = (spec, fromPath, dir) => {
+let sp = String(spec || '').trim().split('?')[0].split('#')[0];
+if (!sp || /^[a-z][a-z0-9+.-]*:\/\//i.test(sp) || sp.startsWith('~') || sp.startsWith('//') || sp.includes('${')) return null;
+const look = base => {
+for (const e of __exts) { if (__paths.has(base + e)) return base + e; }
+for (const e of __idxs) { if (__paths.has(base + '/' + e)) return base + '/' + e; }
+return null;
 };
-const __importsOf = m => {
-const items = [];
-for (const s of m.b.imports) items.push((/^\.{1,2}\//.test(s) || /^\//.test(s) || /\.[a-z0-9]+$/i.test(s)) ? '//' + String(s).replace(/^\/\/+/, '').trim() : s);
-for (const s of m.b.importItems) items.push(s);
-return items;
+if (sp.startsWith('.')) {
+const t = __norm((dir ? dir + '/' : '') + sp);
+return t ? look(t) : null;
+}
+if (sp.startsWith('/')) return look(__norm(sp));
+const t = __norm(sp.replace(/\./g, '/'));
+if (t && look(t)) return look(t);
+const t2 = __norm((dir ? dir + '/' : '') + sp);
+return t2 ? look(t2) : null;
 };
-if (__mode === 'Isolated') {
-const out = [HEADER, ''];
+const __edgeMap = new Map();
 for (const m of merged) {
-if (!__importsOf(m).length && !__exportsOf(m).length) out.push('//' + m.path);
+const dir = m.path.includes('/') ? m.path.slice(0, m.path.lastIndexOf('/')) : '';
+const targets = [];
+for (const s of m.b.imports) {
+const t = __resolve(s, m.path, dir);
+if (t && t !== m.path && targets.indexOf(t) === -1) targets.push(t);
 }
-return out.join('\n');
+__edgeMap.set(m.path, targets);
 }
-const out = [HEADER];
-for (const m of merged) {
-const imp = __importsOf(m);
-const exp = __exportsOf(m);
-const lines = ['//' + m.path];
-if ((__mode === 'deps: I' || __mode === 'deps: I+E') && imp.length) { lines.push('I:'); for (const s of imp) lines.push(s); }
-if ((__mode === 'deps: E' || __mode === 'deps: I+E') && exp.length) { lines.push('E:'); for (const s of exp) lines.push(s); }
-if (lines.length > 1) { out.push(''); for (const l of lines) out.push(l); }
+const __htmlRe = /\.(html?|vue|svelte|astro|php)$/i;
+const __roots = merged.filter(m => __htmlRe.test(m.path) && (__edgeMap.get(m.path) || []).length).map(m => m.path);
+if (!__roots.length) for (const m of merged) if (__htmlRe.test(m.path)) { __roots.push(m.path); break; }
+const __model = (window.__buildRepoModel && __edgeMap.size) ? window.__buildRepoModel(__edgeMap, __roots) : null;
+const __lab = p => __model ? (__model.labelOf.get(p) || '?') : '?';
+const __cyc = p => __model ? (__model.cycleIdOf.get(p) || null) : null;
+const __disp = p => './' + String(p).replace(/^\.\//, '');
+// reverse edges: E: = outgoing, I: = incoming
+const __inMap = new Map();
+for (const [src, ts] of __edgeMap) for (const t of ts) {
+if (!__inMap.has(t)) __inMap.set(t, []);
+__inMap.get(t).push(src);
 }
-return out.join('\n');
+// group: isolated cycle clusters → isolated acyclic → proper (connected)
+const __proper = [], __isoCyc = new Map(), __isoAcy = [];
+const __norder = merged.map(m => m.path);
+const __nodeBy = new Map(merged.map(m => [m.path, m]));
+for (const p of __norder) {
+const lab = __lab(p);
+const cyc = __cyc(p);
+if (/^\d/.test(lab)) __proper.push(p);
+else if (cyc && /^\? \(/.test(lab)) {
+if (!__isoCyc.has(cyc)) __isoCyc.set(cyc, []);
+__isoCyc.get(cyc).push(p);
+} else __isoAcy.push(p);
 }
+// full-mode symbol tag lines: fixed master order, compact, no empty tags
+const __SYMTAGS = [
+['C', 'consts'], ['EC', 'econsts'],
+['L', 'lets'], ['EL', 'elets'],
+['V', 'vars'],
+['W', 'window'], ['Dm', 'doc'],
+['F', 'funcs'], ['EF', 'efuncs'], ['EDF', 'dfuncs'], ['AF', 'afuncs'], ['EAF', 'eafuncs'], ['GF', 'gens'],
+['Cl', 'classes'], ['ECl', 'eclasses'], ['EDCl', 'dclasses'],
+['M', 'methods'],
+['H', 'ids']
+];
+const __out = [__legend];
+const __emit = (p, inCycleSection) => {
+const m = __nodeBy.get(p);
+if (!m) return;
+const dir = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '';
+// E: outgoing = resolved imports + resolved re-export targets
+const outList = (__edgeMap.get(p) || []).slice();
+for (const s of (m.b.reexports || [])) {
+const t = __resolve(s, p, dir);
+if (t && t !== p && outList.indexOf(t) === -1) outList.push(t);
+}
+outList.sort();
+const inList = (__inMap.get(p) || []).slice().sort();
+const hasE = __showE && outList.length > 0;
+const hasI = __showI && inList.length > 0;
+if (!inCycleSection) {
+const lab = __lab(p);
+// depth lines stay pure digits — no (CycleK) suffix in text output
+// (reachable cycles live only in the Files-mode toggle rows)
+const dnum = (String(lab).match(/^\??(\d+)/) || [0, '0'])[1];
+__out.push(dnum);
+}
+__out.push((hasE || hasI ? '// ' : '# ') + __disp(p));
+if (__isFull) {
+for (const [tag, key] of __SYMTAGS) {
+const names = m.b[key];
+if (names && names.length) __out.push(tag + ': ' + names.join('·'));
+}
+}
+if (hasE) { __out.push('E:'); for (const x of outList) __out.push('# ' + __disp(x)); }
+if (hasI) { __out.push('I:'); for (const x of inList) __out.push('# ' + __disp(x)); }
+};
+if (__isoCyc.size) {
+const cycIds = Array.from(__isoCyc.keys()).sort((a, b) =>
+(parseInt(String(a).slice(5), 10) || 0) - (parseInt(String(b).slice(5), 10) || 0));
+for (const cid of cycIds) {
+__out.push('? ' + cid + ':');
+for (const p of __isoCyc.get(cid).sort()) __emit(p, true);
+}
+}
+/* ?: and Proper: headers are unconditional — the three-section structure
+ (? Cycle0..N: → ?: → Proper:) never collapses, even when a section is empty */
+__out.push('?:');
+__isoAcy.sort((a, b) => {
+const da = parseInt((__lab(a).match(/^\?(\d+)/) || [0, 0])[1], 10);
+const db = parseInt((__lab(b).match(/^\?(\d+)/) || [0, 0])[1], 10);
+return da - db || a.localeCompare(b);
+});
+for (const p of __isoAcy) __emit(p, false);
+__out.push('Proper:');
+__proper.sort((a, b) => {
+const da = parseInt(__lab(a), 10) || 0;
+const db = parseInt(__lab(b), 10) || 0;
+return da - db || a.localeCompare(b);
+});
+for (const p of __proper) __emit(p, false);
+return __out.join('\n');
+}
+window.__generateCopyList = generateCopyList;
 
 // ---- Copy List button --------------------------------------------------------
 const copyListBtn = document.getElementById('copyListBtn');
@@ -13995,36 +14287,158 @@ $('mergeClose').addEventListener('click', hideMergeReport);
 /* =========================================================================
  Render: tree
  ========================================================================= */
-function computeIsolatedSet() {
+/* Native entry-point roots shared by isolation + depth labeling:
+ HTML roots (linked or index), py/rs/go/php/c native roots, root configs,
+ JS entry/config files. Returns { roots, hasResolvedHtmlRoot }. */
+function computeRootPaths() {
+const HTML_E = new Set(['html', 'htm']);
+const ROOT_CONFIGS = new Set(['package.json', 'cargo.toml', 'tsconfig.json', 'go.mod', 'composer.json', 'pyproject.toml']);
+const PY_ROOTS = new Set(['main.py', 'app.py', 'manage.py', 'wsgi.py', 'asgi.py']);
+const RS_ROOTS = new Set(['main.rs', 'lib.rs', 'build.rs']);
 const g = getGraph();
-const out = new Set();
+const extOf = p => { const m = p.match(/\.([a-z0-9]+)$/i); return m ? m[1].toLowerCase() : ''; };
+const baseOf = p => p.slice(p.lastIndexOf('/') + 1).toLowerCase();
+const roots = [];
+let hasResolvedHtmlRoot = false;
 for (const f of files) {
 if (f.isOutside) continue;
-const o = g.out.get(f.path);
-const i = g.inn.get(f.path);
-if ((!o || o.size === 0) && (!i || i.size === 0)) out.add(f.id);
+const p = f.path, e = extOf(p), base = baseOf(p);
+const outDeg = (g.out.get(p) || new Set()).size;
+if (HTML_E.has(e)) {
+if (outDeg > 0 || /(^|\/)index\.html?$/i.test(p)) { roots.push(p); if (outDeg > 0) hasResolvedHtmlRoot = true; }
+continue;
 }
-return out;
+if (ROOT_CONFIGS.has(base)) { roots.push(p); continue; }
+if (e === 'py') { if (PY_ROOTS.has(base) || base.startsWith('test_')) roots.push(p); continue; }
+if (e === 'rs') { if (RS_ROOTS.has(base) || /(^|\/)(bin|tests?|examples|benches)(\/|$)/.test(p)) roots.push(p); continue; }
+if (e === 'go') { if (base === 'main.go' || base === 'go.mod') roots.push(p); continue; }
+if (e === 'php') { if (base === 'index.php' || /(^|\/)public(\/|$)/.test(p)) roots.push(p); continue; }
+if (e === 'c' || e === 'cpp' || e === 'cc' || e === 'cxx') { if (/\bint\s+main\s*\(/.test(f.text || '')) roots.push(p); continue; }
+if (/(^|\/)(vite|webpack|rollup|esbuild|jest|babel|tslint)\.config\.[cm]?[jt]sx?$|(^|\/)server\.[cm]?[jt]sx?$/.test(p)) { roots.push(p); continue; }
+}
+return { roots, hasResolvedHtmlRoot };
 }
 
-function makeIsolatedRow(isolated) {
+function computeIsolatedSet() {
+/* Generous multi-root reachability ("unreachable from HTML"):
+ - .txt/.md/.log/.csv are ignored completely (never isolated)
+ - HTML files are web roots: active if they link to at least one local file
+ (or are index.html); isolated only if linkless
+ - EVERY other file must connect to an active root through the import/link
+ graph; exports alone don't save it. Edges between unreachable files don't
+ help: a mutual-import cycle (js1.js ↔ js2.js) or an orphan tree connects
+ only to itself, so it stays isolated — it surfaces as ? CycleK / ?: rows.
+ - Backend languages (py/rs/go/c/cpp/php…) get native entry-point generosity
+ (main.py, __init__.py, main.rs, lib.rs, build.rs, src/bin/, tests/, main.go,
+ index.php, files with int main(, *.config.js, server.js)
+ - Root configs (package.json, Cargo.toml, tsconfig.json, go.mod) are active
+ - Assets are active when referenced by any active file
+ - Only files unreachable from every root are flagged; cycles of any size are
+ safe because nodes enter the visited set on first discovery */
+const g = getGraph();
+const out = g.out;
+const extOf = p => { const m = p.match(/\.([a-z0-9]+)$/i); return m ? m[1].toLowerCase() : ''; };
+const baseOf = p => p.slice(p.lastIndexOf('/') + 1).toLowerCase();
+const dirOf = p => p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '';
+const HTML_E = new Set(['html', 'htm']);
+const DOC_E = new Set(['txt', 'md', 'log', 'csv']);
+const ROOT_CONFIGS = new Set(['package.json', 'cargo.toml', 'tsconfig.json', 'go.mod', 'composer.json', 'pyproject.toml']);
+const PY_ROOTS = new Set(['main.py', 'app.py', 'manage.py', 'wsgi.py', 'asgi.py', 'test_']);
+const RS_ROOTS = new Set(['main.rs', 'lib.rs', 'build.rs']);
+const outSize = p => (out.get(p) || new Set()).size;
+const list = files.filter(f => !f.isOutside);
+
+// --- seed roots ---
+const roots = [];
+let hasResolvedHtmlRoot = false;
+for (const f of list) {
+const p = f.path, e = extOf(p), base = baseOf(p), dir = dirOf(p);
+if (HTML_E.has(e)) {
+// generous: resolved targets OR any local-looking link attempt keeps it active
+if (outSize(p) > 0 || /(^|\/)index\.html?$/i.test(p)) { roots.push(p); if (outSize(p) > 0) hasResolvedHtmlRoot = true; }
+continue;
+}
+if (ROOT_CONFIGS.has(base)) { roots.push(p); continue; }
+if (e === 'py') { if (PY_ROOTS.has(base) || base.startsWith('test_')) roots.push(p); continue; }
+if (e === 'rs') {
+if (RS_ROOTS.has(base) || /(^|\/)(bin|tests?|examples|benches)(\/|$)/.test(p)) roots.push(p);
+continue;
+}
+if (e === 'go') { if (base === 'main.go' || base === 'go.mod') roots.push(p); continue; }
+if (e === 'php') { if (base === 'index.php' || /(^|\/)public(\/|$)/.test(p)) roots.push(p); continue; }
+if (e === 'c' || e === 'cpp' || e === 'cc' || e === 'cxx') { if (/\bint\s+main\s*\(/.test(f.text || '')) roots.push(p); continue; }
+if (/(^|\/)(vite|webpack|rollup|esbuild|jest|babel|tslint)\.config\.[cm]?[jt]sx?$|(^|\/)server\.[cm]?[jt]sx?$/.test(p)) { roots.push(p); continue; }
+}
+// --- loop-safe BFS (visited on first discovery: cycles of size 2..N ok) ---
+const visited = new Set(roots);
+const queue = roots.slice();
+while (queue.length) {
+const p = queue.shift();
+for (const t of (out.get(p) || new Set())) {
+if (!visited.has(t)) { visited.add(t); queue.push(t); }
+}
+}
+// --- classify ---
+const isolated = new Set();
+for (const f of list) {
+const p = f.path, e = extOf(p), base = baseOf(p);
+if (DOC_E.has(e)) continue; // never reported
+if (HTML_E.has(e)) {
+// active when it links out, is index.html, or is navigated to from an
+// active root (<a href> multi-page tracing); isolated only when linkless
+// AND unreachable AND not index
+if (!visited.has(p) && outSize(p) === 0 && !/(^|\/)index\.html?$/i.test(p)) isolated.add(f.id);
+continue;
+}
+if (visited.has(p)) continue; // reachable from a root → active
+// Unreachable from every root → isolated, even when it has edges:
+// mutual-import cycles and orphan trees connect only to each other, so
+// their E:/I: edges never reach an active root (former bug: only totally
+// edge-less files were flagged, which hid js1.js ↔ js2.js style cycles).
+isolated.add(f.id);
+}
+return isolated;
+}
+
+/* Depth/cycle model for tree labels: n / n (CycleK) / ?0 / ? (CycleK) */
+function computeRepoModelFiles() {
+if (typeof window.__buildRepoModel !== 'function') return null;
+const g = getGraph();
+const edgeMap = new Map();
+for (const [k, v] of g.out) edgeMap.set(k, Array.from(v));
+return window.__buildRepoModel(edgeMap, computeRootPaths().roots);
+}
+window.__filesModel = function () { return computeRepoModelFiles(); };
+
+/* doc files (.md/.txt/.log/.csv) never carry a depth/isolated state: they are
+ ignored by computeIsolatedSet and get no tree label — the depth rule must
+ skip them too, even though the import graph still contains them as nodes */
+function isDocPath(p) {
+const m = String(p == null ? '' : p).match(/\.([a-z0-9]+)$/i);
+const e = m ? m[1].toLowerCase() : '';
+return e === 'md' || e === 'txt' || e === 'log' || e === 'csv';
+}
+
+/* shared group row: one toggle that flips a whole set of files (isolated
+ rows and CycleK rows are built from this) */
+function makeGroupRow(idSet, labelText, titleText, cls, statusPrefix) {
 const row = document.createElement('div');
-row.className = 'row file isolated-row';
+row.className = 'row file ' + cls;
 row.style.paddingLeft = '8px';
 const caret = document.createElement('span');
 caret.className = 'caret leaf';
 row.appendChild(caret);
 const tg = document.createElement('span');
-const selected = files.filter(f => isolated.has(f.id) && f.selected).length;
-const total = isolated.size;
+const selected = files.filter(f => idSet.has(f.id) && f.selected).length;
+const total = idSet.size;
 const st = selected === 0 ? 'off' : selected === total ? 'on' : 'ind';
 tg.className = 'toggle ' + (st === 'on' ? 'on' : st === 'ind' ? 'ind' : 'off');
 tg.setAttribute('role', 'switch');
 row.appendChild(tg);
 const nm = document.createElement('span');
 nm.className = 'name';
-nm.textContent = ISOLATED;
-nm.title = 'Files that neither import nor are imported';
+nm.textContent = labelText;
+nm.title = titleText;
 row.appendChild(nm);
 const b = document.createElement('span');
 b.className = 'badge';
@@ -14033,13 +14447,33 @@ row.appendChild(b);
 row.addEventListener('click', () => {
 syncFromEditor();
 const target = st !== 'on';
-for (const f of files) if (isolated.has(f.id)) f.selected = target;
+for (const f of files) if (idSet.has(f.id)) f.selected = target;
 treeRoot = buildTree();
 renderEditor();
 renderTree();
-setStatus('isolated: ' + (target ? 'selected' : 'cleared'), 'ok');
+setStatus(statusPrefix + ': ' + (target ? 'selected' : 'cleared'), 'ok');
 });
 return row;
+}
+/* ?: group — isolated acyclic files (unreachable from HTML, no cycle) */
+function makeIsolatedRow(isoAcy) {
+return makeGroupRow(isoAcy, '?:',
+'Isolated acyclic files — no path from HTML; each connected tree restarts depth at 0',
+'isolated-row', 'isolated');
+}
+/* ? CycleK: group — one toggle per isolated cycle cluster (Cycle0..CycleN) */
+function makeCycleRow(cycleId, memberIds) {
+return makeGroupRow(memberIds,
+'? ' + cycleId + ':',
+'Isolated cycle — these files only reference each other; no path from HTML reaches them',
+'cycle-row', cycleId);
+}
+/* CycleK: group — one toggle per HTML-reachable cycle (Proper: members, no text suffix) */
+function makeReachableCycleRow(cycleId, memberIds) {
+return makeGroupRow(memberIds,
+cycleId + ':',
+'Reachable cycle — HTML reaches these files; members are tagged n (' + cycleId + ') in the tree only',
+'cycle-row', cycleId);
 }
 
 function computeDupedSet() {
@@ -14093,6 +14527,7 @@ return row;
 
 function renderTree() {
 treeEl.textContent = '';
+if (!filesModelCache) filesModelCache = computeRepoModelFiles();
 try { if (typeof window.__persistFiles === 'function') window.__persistFiles(); } catch (_) {}
 if (!files.length) {
 const d = document.createElement('div');
@@ -14110,9 +14545,46 @@ file: outsideFile, parent: null
 }, 0));
 }
 const isolated = computeIsolatedSet();
-if (isolated.size) {
-treeEl.appendChild(makeIsolatedRow(isolated));
+const model = filesModelCache;
+const isoAcy = new Set();
+const isoCycles = [];
+if (model && model.cycles) {
+// group isolated files like the list serializer: ? Cycle0..N: → ?: → Proper:
+for (const f of files) {
+if (f.isOutside || !isolated.has(f.id)) continue;
+const lab = model.labelOf.get(f.path) || '';
+if (/^\? \(/.test(lab)) {
+const cid = model.cycleIdOf.get(f.path) || 'Cycle';
+let grp = isoCycles.find(g => g.id === cid);
+if (!grp) { grp = { id: cid, ids: new Set() }; isoCycles.push(grp); }
+grp.ids.add(f.id);
+} else isoAcy.add(f.id);
 }
+isoCycles.sort((a, b) => (parseInt(a.id.slice(5), 10) || 0) - (parseInt(b.id.slice(5), 10) || 0));
+} else {
+for (const id of isolated) isoAcy.add(id);
+}
+// reachable cycles (members tagged n (CycleK)): toggle data only, no text suffix
+const connCycles = [];
+if (model && model.cycles) {
+const isoIds = new Set();
+for (const g of isoCycles) for (const id of g.ids) isoIds.add(id);
+for (const c of model.cycles) {
+if (!c.connected) continue; // fully isolated cycles already have ? CycleK: rows
+const ids = new Set();
+for (const f of files) {
+if (f.isOutside || isoIds.has(f.id)) continue;
+if (model.cycleIdOf.get(f.path) === c.id) ids.add(f.id);
+}
+if (ids.size) connCycles.push({ id: c.id, ids });
+}
+connCycles.sort((a, b) => (parseInt(a.id.slice(5), 10) || 0) - (parseInt(b.id.slice(5), 10) || 0));
+}
+for (const grp of isoCycles) treeEl.appendChild(makeCycleRow(grp.id, grp.ids));
+if (isoAcy.size) {
+treeEl.appendChild(makeIsolatedRow(isoAcy));
+}
+for (const grp of connCycles) treeEl.appendChild(makeReachableCycleRow(grp.id, grp.ids));
 const duped = computeDupedSet();
 if (duped.size) {
 treeEl.appendChild(makeDupedRow(duped));
@@ -14178,6 +14650,17 @@ const s = document.createElement('span');
 s.className = 'dupsuf';
 s.textContent = dupSuffix;
 nm.appendChild(s);
+}
+// depth/cycle visualization label: 0, 1 (Cycle0), ?0, ? (Cycle1)…
+if (filesModelCache && !isDocPath(file.path)) {
+const lab = filesModelCache.labelOf.get(file.path);
+if (lab) {
+const lb = document.createElement('span');
+lb.className = 'isolab';
+lb.textContent = ' · ' + lab;
+lb.title = 'depth label: 0/1/2… = shortest path from HTML · ?n = unreachable acyclic · ? (CycleK) = unreachable circle';
+nm.appendChild(lb);
+}
 }
 nm.title = file.path;
 } else {
@@ -14321,8 +14804,36 @@ return { next, removed, structureChanged, contentChanged };
 /* =========================================================================
  Sync: editor → files
  ========================================================================= */
+/* Auto-dedupe: collapse same-path selected files (keep the largest text).
+ Runs on every input-textarea operation; returns number merged. */
+function dedupeSelected() {
+const byPath = new Map();
+const kept = [];
+let dupCount = 0;
+for (const f of files) {
+if (!f.selected || f.isOutside) { kept.push(f); continue; }
+const prev = byPath.get(f.path);
+if (!prev) { byPath.set(f.path, f); kept.push(f); continue; }
+dupCount++;
+if ((f.text || '').length > (prev.text || '').length) {
+byPath.set(f.path, f);
+kept[kept.indexOf(prev)] = f;
+}
+}
+if (!dupCount) return 0;
+pushUndo(snapshotFiles());
+files = kept;
+invalidateGraph();
+sortFilesArray();
+treeRoot = buildTree();
+renderTree();
+renderEditor();
+updateFilterPreview();
+return dupCount;
+}
+
 function syncFromEditor() {
-const noop = { structureChanged: false, contentChanged: false, removed: [] };
+const noop = { structureChanged: false, contentChanged: false, removed: [], duped: 0 };
 if (editor.value === lastRendered) return noop;
 
 invalidateGraph();
@@ -14334,11 +14845,14 @@ const res = computeMerge(parsed, currentMode);
 if (res.structureChanged) { pushUndo(snapshot); files = res.next; }
 else if (res.contentChanged) { files = res.next; }
 
+const duped = dedupeSelected();
+
 sortFilesArray();
 lastRendered = editor.value;
 return { structureChanged: res.structureChanged,
  contentChanged: res.contentChanged,
- removed: res.removed };
+ removed: res.removed,
+ duped };
 }
 
 /* =========================================================================
@@ -14440,6 +14954,7 @@ pushUndo(snapshot);
 if (replace) {
 files = parsed.map(e => newFile(e.path, e.text, true));
 invalidateGraph();
+const __dd = dedupeSelected();
 sortFilesArray();
 collapsedPaths.clear();
 treeRoot = buildTree();
@@ -14447,13 +14962,14 @@ renderTree();
 renderEditor();
 hideMergeReport();
 updateFilterPreview();
-setStatus(parsed.length + ' loaded', 'ok');
+setStatus((parsed.length + ' loaded') + (__dd ? ' · Duped ' + __dd + ' file(s)' : ''), 'ok');
 return;
 }
 
 const res = computeMerge(parsed, currentMode);
 files = res.next;
 invalidateGraph();
+const duped = dedupeSelected();
 sortFilesArray();
 collapsedPaths.clear();
 treeRoot = buildTree();
@@ -14463,6 +14979,7 @@ updateFilterPreview();
 const parts = [];
 if (res.structureChanged) parts.push('merged');
 if (res.removed.length) parts.push(res.removed.length + ' removed');
+if (duped) parts.push('Duped ' + duped + ' file(s)');
 setStatus(parts.length ? parts.join(' · ') : 'loaded', 'ok');
 }
 
@@ -14538,11 +15055,11 @@ if (!text) return [];
 let src = String(text).replace(/\r\n?/g, '\n');
 src = src.replace(
 /\bimport\b([^'"`;]*?)\{([^}]*)\}\s*from\s*(['"][^'"]+['"])/g,
-(m, pre, body, q) => 'import' + pre + '{' + body.replace(/\n+/g, ' ') + '} from ' + q
+(m, pre, body, q) => 'import' + (pre || ' ') + '{' + body.replace(/\n+/g, ' ') + '} from ' + q
 );
 src = src.replace(
 /\bexport\b([^'"`;]*?)\{([^}]*)\}\s*from\s*(['"][^'"]+['"])/g,
-(m, pre, body, q) => 'export' + pre + '{' + body.replace(/\n+/g, ' ') + '} from ' + q
+(m, pre, body, q) => 'export' + (pre || ' ') + '{' + body.replace(/\n+/g, ' ') + '} from ' + q
 );
 src = src.replace(
 /^(\s*from\s+[\w.]+\s+import\s*)\(([^)]*)\)/gm,
@@ -14552,8 +15069,21 @@ for (const line of src.split('\n')) {
 let m;
 if ((m = line.match(/(?:^|[^\w.])import\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/))) { if (!m[1].includes('${')) out.add(m[1]); }
 if ((m = line.match(/\brequire\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/))) { if (!m[1].includes('${')) out.add(m[1]); }
-if ((m = line.match(/^\s*@(?:import|use)\s+(?:url\()?\s*['"]?([^'")]+)['"]?/))) out.add(m[1]);
+if ((m = line.match(/^\s*@(?:import|use|forward)\s+(?:url\()?\s*['"]?([^'")]+)['"]?/))) out.add(m[1]);
+if ((m = line.match(/\burl\(\s*['"]?([^'")]+)['"]?\s*\)/))) { const u = m[1].trim(); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u) && !u.startsWith('#')) out.add(u); }
 if ((m = line.match(/^\s*#\s*include\s*["<]([^">]+)[">]/))) out.add(m[1]);
+if ((m = line.match(/^\s*#\s*import\s+"([^"]+)"/))) out.add(m[1]);
+if ((m = line.match(/^\s*mod\s+([\w_]+)\s*;/))) out.add(m[1]);
+if ((m = line.match(/#\[\s*path\s*=\s*"([^"]+)"/))) out.add(m[1]);
+if ((m = line.match(/\binclude(?:_str|_bytes)?!\s*\(\s*"([^"]+)"/))) out.add(m[1]);
+if ((m = line.match(/\b(?:include|include_once|require|require_once)\b[^;'"()]*[(\s]\s*['"]([^'"]+)['"]/))) out.add(m[1]);
+if ((m = line.match(/\brequire_relative\s+['"]([^'"]+)['"]/))) out.add(m[1]);
+if ((m = line.match(/\b(?:load|dofile)\s*\(?\s*['"]([^'"]+)['"]/))) out.add(m[1]);
+if ((m = line.match(/^\s*(?:source|\.)\s+([~./\w][^\s;]+)/))) out.add(m[1]);
+if ((m = line.match(/@import\(\s*"([^"]+)"/))) out.add(m[1]);
+if ((m = line.match(/@embedFile\(\s*"([^"]+)"/))) out.add(m[1]);
+if ((m = line.match(/\/\/\s*go:embed\s+(\S+)/))) out.add(m[1]);
+if ((m = line.match(/\bimportlib\.import_module\(\s*['"]([\w.]+)['"]/))) out.add(m[1].replace(/\./g, '/'));
 if ((m = line.match(/^\s*import\s+(?:type\s+)?(?:[\w${}*,\s]+?\s+from\s+)?['"]([^'"]+)['"]/))) out.add(m[1]);
 if ((m = line.match(/^\s*export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\s+from\s+['"]([^'"]+)['"]/))) out.add(m[1]);
 if ((m = line.match(/^\s*from\s+([.\w]+)\s+import\s+(.+?)\s*$/))) {
@@ -14570,6 +15100,39 @@ if (mod) out.add(mod.replace(/\./g, '/'));
 }
 }
 }
+// --- HTML / web-template tags: script src, link href, a href, iframe/embed/
+// --- object data, img/source/track/video src+poster, form action, srcset
+const tagAttrRe = /<(script|link|a|iframe|embed|object|img|source|track|video|audio|form|input|use)\b([^>]*)>/gi;
+let tm;
+while ((tm = tagAttrRe.exec(src)) !== null) {
+const attrs = tm[2];
+const want = tm[1].toLowerCase() === 'object' ? '(?:src|data)' : (tm[1].toLowerCase() === 'form' ? 'action' : '(?:src|href|poster)');
+const am = attrs.match(new RegExp('\\b' + want + '\\s*=\\s*("([^"]*)"|\'([^\']*)\')', 'i'));
+if (am) {
+const v = (am[2] || am[3] || '').trim();
+if (v && !v.startsWith('#') && !/^[a-z][a-z0-9+.-]*:/i.test(v) && !v.startsWith('//') && !v.includes('${')) out.add(v);
+}
+const sm = attrs.match(/\bsrcset\s*=\s*("([^"]*)"|'([^']*)')/i);
+if (sm) {
+const first = (sm[2] || sm[3] || '').trim().split(',')[0].trim().split(/\s+/)[0];
+if (first && !/^[a-z][a-z0-9+.-]*:/i.test(first) && !first.startsWith('//')) out.add(first);
+}
+}
+// --- cross-language bridges from JS/TS: workers, service workers, worklets,
+// --- fetch of local files, WASM streaming, import.meta.url assets
+const bridgeRe = /\b(?:new\s+(?:Shared)?Worker|navigator\.serviceWorker\.register|paintWorklet\.addModule|WebAssembly\.instantiateStreaming|fetch)\s*\(\s*['"`]([^'"`]+)['"`]/g;
+let bm;
+while ((bm = bridgeRe.exec(src)) !== null) {
+const v = bm[1].trim();
+if (v && !v.includes('${') && !/^[a-z][a-z0-9+.-]*:\/\//i.test(v) && !v.startsWith('//') && (/^[./]/.test(v) || /\.[a-z0-9]{1,5}$/i.test(v.split('?')[0]))) out.add(v.split('?')[0].split('#')[0]);
+}
+// --- template partials: {% include "x" %}, <%- include('x') %>, {{> partial }}
+const partRe = /\{%-?\s*include\s+['"]([^'"]+)['"]|<%-?\s*include\s*\(\s*['"]([^'"]+)['"]|\{\{>\s*['"]?([\w./-]+)/g;
+let pm;
+while ((pm = partRe.exec(src)) !== null) {
+const v = (pm[1] || pm[2] || pm[3] || '').trim();
+if (v) out.add(v);
+}
 return Array.from(out);
 }
 
@@ -14585,13 +15148,13 @@ if (s.startsWith('.')) {
 if (fromPath.toLowerCase().endsWith('.py') && /^.{1,}[a-zA-Z_]/.test(s)) {
 let dots = 0;
 while (s[dots] === '.') dots++;
-const rest = s.slice(dots);
+const rest = s.slice(dots).replace(/^\/+/, '');
 let dir = fromPath.includes('/') ? fromPath.slice(0, fromPath.lastIndexOf('/')) : '';
 for (let i = 1; i < dots; i++) {
 if (dir.includes('/')) dir = dir.slice(0, dir.lastIndexOf('/'));
 else dir = '';
 }
-const joined = (dir ? dir + '/' : '') + rest.replace(/./g, '/');
+const joined = (dir ? dir + '/' : '') + rest.replace(/\./g, '/');
 return normalizePath(joined) || null;
 }
 const dir = fromPath.includes('/') ? fromPath.slice(0, fromPath.lastIndexOf('/')) : '';
@@ -14629,12 +15192,26 @@ if (byPath.has(p)) return p;
 const lp = byLower.get(p.toLowerCase());
 if (lp) return lp;
 }
+// Sass/CSS partials: @use "buttons" -> _buttons.scss / _buttons.sass / …
+{
+const m = base.match(/^(.*\/)?([^\/]+)$/);
+if (m) {
+const dir = m[1] || '';
+for (const e of ['.scss', '.sass', '.css', '.less']) {
+const p = dir + '_' + m[2] + e;
+if (byPath.has(p)) return p;
+const lp = byLower.get(p.toLowerCase());
+if (lp) return lp;
+}
+}
+}
 return null;
 }
 
 /* --- graph (cached) ------------------------------------------------------ */
 let graphCache = null;
-function invalidateGraph() { graphCache = null; }
+let filesModelCache = null;
+function invalidateGraph() { graphCache = null; filesModelCache = null; }
 
 function buildImportGraph() {
 const byPath = new Map();
@@ -14653,8 +15230,16 @@ for (const f of list) {
 const targets = new Set();
 for (const spec of extractImportSpecs(f.text)) {
 const base = resolveSpec(spec, f.path);
-if (!base) continue;
-const hit = lookupPath(base, byPath, byLower);
+let hit = null;
+const isBare = base && !/^[./]/.test(spec) && !spec.includes('/');
+if (isBare) {
+// bare specifiers (rust `mod utils;`, sass `@use "buttons"`, py `import x`)
+// resolve against the importing file's directory first, then the root
+const dir = f.path.includes('/') ? f.path.slice(0, f.path.lastIndexOf('/')) : '';
+const alt = normalizePath((dir ? dir + '/' : '') + spec.split('?')[0].split('#')[0]);
+if (alt && alt !== base) hit = lookupPath(alt, byPath, byLower);
+}
+if (!hit && base) hit = lookupPath(base, byPath, byLower);
 if (hit && hit !== f.path) targets.add(hit);
 }
 out.set(f.path, targets);
@@ -14890,6 +15475,79 @@ return list.includes(e);
 };
 }
 
+if (kind === 'depth') {
+/* depth/cycle labels: '0','1'… = HTML-reachable · '?0','?1'… = isolated acyclic ·
+ '? (CycleK)' = isolated cycle member · 'n (CycleK)' = reachable cycle member.
+ Query tokens: N → reachable depth N · ?N → isolated acyclic depth N · bare ?
+ → every isolated file · cycle → every cycle member · cycleN → members of
+ CycleN · ?cycle → isolated cycle members · ?cycleN → isolated members of
+ CycleN. '? cycle' joins on whitespace only; any other non-?/digit run
+ separates ('?-cycle' = '?' + 'cycle'). Separators: any run of chars that
+ are not '?' or 0-9 (comma, space, ';', '+', letters…). Garbage tokens are
+ ignored — this never throws. */
+let __dNums = null, __dIsoNums = null, __dAnyIso = false;
+let __dCycles = null, __dIsoCycles = null, __dAnyCycle = false, __dAnyIsoCycle = false;
+try {
+const __dq = String(q == null ? '' : q);
+const __dre = /\?+\s*cycle(\d+)?|\?+\d+|cycle(\d+)?|\?+|\d+/gi;
+let __dm;
+while ((__dm = __dre.exec(__dq)) !== null) {
+const tok = __dm[0];
+const isCyc = /cycle/i.test(tok);
+if (isCyc) {
+const cd = __dm[1] !== undefined ? __dm[1] : __dm[2];
+const n = cd ? parseInt(cd.slice(0, 9), 10) : null;
+if (tok.charAt(0) === '?') { // ?cycle / ?cycleN (whitespace-joined)
+if (n !== null && Number.isFinite(n)) { if (!__dIsoCycles) __dIsoCycles = new Set(); __dIsoCycles.add(n); }
+else if (!cd) __dAnyIsoCycle = true;
+} else {
+if (n !== null && Number.isFinite(n)) { if (!__dCycles) __dCycles = new Set(); __dCycles.add(n); }
+else __dAnyCycle = true;
+}
+} else if (tok.charAt(0) === '?') {
+const digits = tok.replace(/\?/g, '');
+if (!digits) __dAnyIso = true; // pure '?' (one or more)
+else {
+const n = parseInt(digits.slice(0, 9), 10);
+if (Number.isFinite(n) && n >= 0) { if (!__dIsoNums) __dIsoNums = new Set(); __dIsoNums.add(n); }
+}
+} else {
+const n = parseInt(tok.slice(0, 9), 10);
+if (Number.isFinite(n) && n >= 0) { if (!__dNums) __dNums = new Set(); __dNums.add(n); }
+}
+}
+} catch (_) { __dNums = __dIsoNums = __dCycles = __dIsoCycles = null; __dAnyIso = __dAnyCycle = __dAnyIsoCycle = false; }
+if (!__dNums && !__dIsoNums && !__dAnyIso && !__dCycles && !__dIsoCycles && !__dAnyCycle && !__dAnyIsoCycle) return null;
+return f => {
+try {
+if (!f || f.isOutside || isDocPath(f.path)) return false; // docs have no depth state
+if (!filesModelCache) filesModelCache = computeRepoModelFiles();
+const lab = (filesModelCache && filesModelCache.labelOf) ? filesModelCache.labelOf.get(f.path) : '';
+if (typeof lab !== 'string' || !lab) return false;
+if (__dAnyIso && lab.charAt(0) === '?') return true; // bare '?' → every isolated label
+const cycM = lab.match(/\(Cycle(\d+)\)/);
+if (cycM) {
+const cid = parseInt(cycM[1], 10);
+const isIso = lab.charAt(0) === '?';
+if (__dAnyCycle) return true; // cycle → every cycle member (reachable + isolated)
+if (__dCycles && __dCycles.has(cid)) return true; // cycleN → that cluster, both kinds
+if (isIso) { // isolated member '? (CycleK)': ?-family tokens only
+if (__dAnyIsoCycle) return true;
+return !!(__dIsoCycles && __dIsoCycles.has(cid));
+}
+// reachable member 'n (CycleK)': plain depth tokens still match its depth n
+const dm = lab.match(/^(\d+)/);
+return !!(dm && __dNums && __dNums.has(parseInt(dm[1], 10)));
+}
+if (lab.charAt(0) === '?') {
+return /^\?\d+$/.test(lab) && !!__dIsoNums && __dIsoNums.has(parseInt(lab.slice(1), 10));
+}
+const m = lab.match(/^(\d+)/);
+return !!(m && __dNums && __dNums.has(parseInt(m[1], 10)));
+} catch (_) { return false; }
+};
+}
+
 const terms = splitTerms(q);
 if (!terms.length) return null;
 
@@ -14932,13 +15590,14 @@ return null;
 }
 
 /* --- rule kinds ---------------------------------------------------------- */
-const RULE_KINDS = ['name', 'path', 'glob', 'regex', 'ext', 'content', 'folderCount', 'fileChars'];
+const RULE_KINDS = ['name', 'path', 'glob', 'regex', 'ext', 'depth', 'content', 'folderCount', 'fileChars'];
 const RULE_PLACEHOLDERS = {
 name:'filename contains — one per line',
 path:'pathways / patterns — one per line or comma separated (globs allowed; depth > 0 walks the import graph)',
 glob:'globs — one per line — e.g. src/**/*.js',
 regex: 'regexes — one per line — e.g. ^src/.+\\.tsx?$',
 ext: 'ext — e.g. js, ts, tsx',
+depth: 'depths — e.g. 0,1,2 · ?0,?1 · cycle,cycle2 · ?cycle · ? = all isolated (any non-?/digit separator)',
 content: 'content regexes — one per line',
 folderCount: 'path filter (optional)',
 fileChars: 'path filter (optional)'
@@ -15203,6 +15862,16 @@ notes.push('chars ' + op + n + ' → ' + marked);
 continue;
 }
 
+if (rule.kind === 'depth') {
+let match = null;
+try { match = makeMatcher('depth', rule.query, rule.matchCase); }
+catch (_) { match = null; }
+let marked = 0;
+if (match) for (const f of files) if (match(f)) { matched.add(f.id); marked++; }
+notes.push('depth → ' + marked);
+continue;
+}
+
 let match;
 try { match = makeMatcher(rule.kind, rule.query, rule.matchCase); }
 catch (err) { error = 'bad pattern: ' + err.message; continue; }
@@ -15290,6 +15959,29 @@ if (q) { e.preventDefault(); q.focus(); q.select(); }
  Wire up
  ========================================================================= */
 window.__filesDemoLoader = function () { loadDump(DEMO, { replace: true }); };
+window.__filesLoadDump = function (text) { return loadDump(String(text || ''), { replace: true }); };
+window.__computeIsolatedSet = function () { return computeIsolatedSet(); };
+window.__filesPaths = function () { return files.filter(f => !f.isOutside).map(f => f.path); };
+window.__filesEntries = function () { return files.filter(f => !f.isOutside).map(f => ({ id: f.id, path: f.path })); };
+window.__filesUndo = function () { try { undo(); } catch (e) { return String(e && e.message); } return null; };
+window.__filesStatus = function () { const el = document.getElementById('status'); return el ? String(el.textContent || '') : ''; };
+window.__filesGraph = function () {
+const g = getGraph();
+const o = {};
+for (const [k, v] of g.out) o[k] = Array.from(v);
+return o;
+};
+window.__filesResolveDebug = function (spec, fromPath) {
+const byPath = new Map();
+const byLower = new Map();
+for (const f of files) {
+if (f.isOutside) continue;
+byPath.set(f.path, f.path);
+byLower.set(f.path.toLowerCase(), f.path);
+}
+const base = resolveSpec(spec, fromPath);
+return { spec, fromPath, base, hit: base ? lookupPath(base, byPath, byLower) : null };
+};
 // --- localStorage persistence for Files mode (files + rules) ---
 window.__persistFiles = (function () {
 let t = 0;
@@ -15436,7 +16128,10 @@ treeRoot = buildTree();
 renderTree();
 scheduleApplyRules();
 }
-if (res.removed.length) {
+if (res.duped) {
+setStatus('Duped ' + res.duped + ' file(s)', 'ok');
+hideMergeReport();
+} else if (res.removed.length) {
 setStatus('removed ' + res.removed.length + ' file(s)', 'ok');
 hideMergeReport();
 } else if (res.structureChanged) {
